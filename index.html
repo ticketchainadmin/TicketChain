@@ -1,0 +1,2155 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1.0"/>
+<title>TicketChain — Crypto Lottery</title>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Syne:wght@400;500;600;700;800&family=DM+Sans:ital,opsz,wght@0,9..40,300;0,9..40,400;0,9..40,500;0,9..40,600;1,9..40,400&family=JetBrains+Mono:wght@400;500;600&display=swap');
+
+:root {
+  --bg: #04050a;
+  --surface: #0b0d15;
+  --card: #0f1219;
+  --card2: #121620;
+  --border: rgba(255,255,255,0.07);
+  --border-bright: rgba(255,255,255,0.14);
+  --accent: #00e5ff;
+  --accent2: #7c3aed;
+  --gold: #fbbf24;
+  --green: #10b981;
+  --red: #f43f5e;
+  --orange: #f97316;
+  --text: #f0f2ff;
+  --muted: #3a4055;
+  --muted2: #6b7280;
+  --font: 'DM Sans', sans-serif;
+  --head: 'Syne', sans-serif;
+  --mono: 'JetBrains Mono', monospace;
+  --max: 600px;
+}
+
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+html{scroll-behavior:smooth}
+body{background:var(--bg);color:var(--text);font-family:var(--font);min-height:100vh;overflow-x:hidden;-webkit-font-smoothing:antialiased}
+::-webkit-scrollbar{width:4px}::-webkit-scrollbar-track{background:var(--bg)}::-webkit-scrollbar-thumb{background:#1a2035;border-radius:4px}
+
+body::before{content:'';position:fixed;inset:0;background:
+  radial-gradient(ellipse 70% 50% at 20% 10%,rgba(247,147,26,0.06) 0%,transparent 55%),
+  radial-gradient(ellipse 60% 50% at 85% 25%,rgba(98,126,234,0.07) 0%,transparent 55%),
+  radial-gradient(ellipse 55% 60% at 15% 75%,rgba(153,69,255,0.06) 0%,transparent 55%),
+  radial-gradient(ellipse 50% 50% at 80% 90%,rgba(0,170,228,0.05) 0%,transparent 55%);
+  pointer-events:none;z-index:0}
+
+
+@keyframes fadeUp{from{opacity:0;transform:translateY(24px)}to{opacity:1;transform:translateY(0)}}
+@keyframes fadeIn{from{opacity:0}to{opacity:1}}
+@keyframes slideUp{from{opacity:0;transform:translateY(20px)}to{opacity:1;transform:translateY(0)}}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:0.4}}
+@keyframes spin{to{transform:rotate(360deg)}}
+@keyframes ticker{0%{transform:translateX(0)}100%{transform:translateX(-50%)}}
+@keyframes shimmer{0%{background-position:200% 0}100%{background-position:-200% 0}}
+@keyframes confetti{0%{transform:translateY(-20px) rotate(0deg);opacity:1}100%{transform:translateY(100vh) rotate(720deg);opacity:0}}
+@keyframes popIn{0%{transform:scale(0.85);opacity:0}70%{transform:scale(1.04)}100%{transform:scale(1);opacity:1}}
+@keyframes glow{0%,100%{box-shadow:0 0 20px rgba(0,229,255,0.15)}50%{box-shadow:0 0 40px rgba(0,229,255,0.35)}}
+@keyframes winnerShine{0%,100%{box-shadow:0 0 30px rgba(251,191,36,0.2)}50%{box-shadow:0 0 60px rgba(251,191,36,0.5),0 0 100px rgba(251,191,36,0.15)}}
+@keyframes float{0%,100%{transform:translateY(0)}50%{transform:translateY(-6px)}}
+@keyframes rotate{to{transform:rotate(360deg)}}
+
+/* TICKER */
+.ticker-bar{background:rgba(0,229,255,0.06);border-bottom:1px solid rgba(0,229,255,0.1);height:34px;overflow:hidden;position:relative;display:flex;align-items:center}
+.ticker-inner{display:flex;align-items:center;white-space:nowrap;animation:ticker 35s linear infinite;width:max-content}
+.ticker-item{font-family:var(--mono);font-size:11px;color:var(--muted2);padding:0 28px;display:inline-flex;align-items:center;gap:8px}
+.ticker-dot{width:4px;height:4px;border-radius:50%;background:var(--accent);animation:pulse 1.5s infinite}
+.ticker-up{color:var(--green)}
+.ticker-dn{color:var(--red)}
+.ticker-logo{width:14px;height:14px;border-radius:50%;vertical-align:middle;display:inline-block;flex-shrink:0}
+.coin-logo-img{width:100%;height:100%;border-radius:50%;object-fit:contain}
+.filter-logo{width:14px;height:14px;border-radius:50%;vertical-align:middle;margin-right:5px;display:inline-block}
+
+/* NAV */
+header{position:sticky;top:0;z-index:100;background:rgba(4,5,10,0.94);backdrop-filter:blur(20px);border-bottom:1px solid var(--border);height:58px;display:flex;align-items:center;justify-content:space-between;padding:0 20px}
+.logo{font-family:var(--head);font-size:20px;font-weight:800;letter-spacing:-0.5px;display:flex;align-items:center;gap:10px;cursor:pointer}
+.logo-mark{width:36px;height:36px;display:flex;align-items:center;justify-content:center;filter:drop-shadow(0 4px 12px rgba(251,191,36,0.4));border-radius:50%;overflow:hidden}
+.logo-mark svg{width:100%;height:100%;display:block}
+.logo span{background:linear-gradient(90deg,#fbbf24 0%,#f59e0b 50%,#fde68a 100%);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text}
+.header-right{display:flex;align-items:center;gap:10px}
+.nav-links{display:flex;align-items:center;gap:2px}
+.nav-link{padding:7px 14px;border-radius:8px;font-size:13px;font-weight:500;color:var(--muted2);cursor:pointer;transition:all .15s;border:none;background:none}
+.nav-link:hover{color:var(--text);background:rgba(255,255,255,0.04)}
+.nav-link.on{color:var(--accent);background:rgba(0,229,255,0.08)}
+.live-badge{font-family:var(--mono);font-size:11px;color:var(--green);background:rgba(16,185,129,0.1);border:1px solid rgba(16,185,129,0.2);padding:5px 12px;border-radius:20px;display:flex;align-items:center;gap:5px}
+.live-badge::before{content:'';width:5px;height:5px;background:var(--green);border-radius:50%;animation:pulse 1.4s infinite}
+
+/* HERO */
+.hero{padding:48px 20px 36px;text-align:center;position:relative;z-index:1}
+.hero-tag{display:inline-flex;align-items:center;gap:8px;font-size:11px;font-weight:500;letter-spacing:2px;text-transform:uppercase;color:var(--accent);background:rgba(0,229,255,0.08);border:1px solid rgba(0,229,255,0.18);padding:7px 18px;border-radius:50px;margin-bottom:22px;animation:fadeUp .5s ease both}
+.hero h1{font-family:var(--head);font-size:clamp(30px,7vw,50px);font-weight:800;line-height:1.06;letter-spacing:-2px;margin-bottom:14px;animation:fadeUp .5s .1s ease both}
+.hero h1 .line2{display:block;background:linear-gradient(90deg,var(--accent) 0%,#a78bfa 50%,var(--gold) 100%);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text}
+.hero p{font-size:15px;color:var(--muted2);max-width:400px;margin:0 auto 32px;line-height:1.7;animation:fadeUp .5s .2s ease both}
+.hero-stats{display:flex;justify-content:center;border:1px solid var(--border);border-radius:14px;overflow:hidden;max-width:380px;margin:0 auto;background:rgba(255,255,255,0.02);animation:fadeUp .5s .3s ease both}
+.hstat{flex:1;padding:16px 12px;text-align:center;border-right:1px solid var(--border)}
+.hstat:last-child{border-right:none}
+.hstat-n{font-family:var(--mono);font-size:20px;font-weight:600;color:var(--accent);display:block}
+.hstat-l{font-size:9px;color:var(--muted);letter-spacing:1.5px;text-transform:uppercase;margin-top:3px;display:block}
+
+.page-section{display:none}
+.page-section.on{display:block}
+
+/* FILTERS */
+.filters{padding:20px 20px 0;display:flex;gap:8px;overflow-x:auto;-webkit-overflow-scrolling:touch;scrollbar-width:none;position:relative;z-index:1;max-width:var(--max);margin:0 auto;width:100%}
+.filters::-webkit-scrollbar{display:none}
+.filter-btn{flex-shrink:0;padding:7px 16px;border-radius:8px;border:1px solid var(--border);background:none;color:var(--muted2);font-family:var(--font);font-size:13px;font-weight:500;cursor:pointer;transition:all .18s;white-space:nowrap}
+.filter-btn.on{background:rgba(0,229,255,0.1);border-color:rgba(0,229,255,0.3);color:var(--accent)}
+.filter-btn:hover:not(.on){border-color:var(--border-bright);color:var(--text)}
+
+/* CAMPAIGNS */
+.campaigns{padding:18px 20px;display:flex;flex-direction:column;gap:15px;position:relative;z-index:1;max-width:var(--max);margin:0 auto;width:100%;padding-bottom:40px}
+.section-title{font-family:var(--head);font-size:14px;font-weight:700;color:var(--muted2);letter-spacing:.5px;text-transform:uppercase;margin-bottom:4px;padding-left:2px}
+
+/* CAMPAIGN CARD */
+/* ══ TEAM-THEMED CAMPAIGN CARDS ══ */
+.campaign-card{
+  position:relative;overflow:hidden;
+  border-radius:20px;border:1.5px solid var(--border);
+  background:var(--card);
+  transition:transform .22s,box-shadow .22s,border-color .22s;
+  animation:fadeUp .4s ease both;
+}
+.campaign-card:hover{transform:translateY(-4px)}
+/* coin watermark logo inside card */
+.card-coin-watermark{
+  position:absolute;right:-18px;top:50%;transform:translateY(-50%);
+  width:110px;height:110px;border-radius:50%;
+  opacity:0.07;pointer-events:none;
+  object-fit:contain;
+  filter:blur(1px) saturate(2);
+}
+/* top colored header band */
+.card-header-band{
+  padding:14px 18px 12px;
+  display:flex;align-items:center;gap:10px;
+  position:relative;
+}
+.card-coin-badge{
+  width:38px;height:38px;border-radius:50%;
+  display:flex;align-items:center;justify-content:center;
+  flex-shrink:0;border:2px solid rgba(255,255,255,0.15);
+  overflow:hidden;background:rgba(0,0,0,0.35);
+}
+.card-coin-badge img{width:24px;height:24px;object-fit:contain}
+.card-coin-name{font-family:var(--mono);font-size:11px;font-weight:700;letter-spacing:2px;text-transform:uppercase;opacity:0.85}
+.card-team-label{font-size:9px;letter-spacing:2px;text-transform:uppercase;opacity:0.5;margin-top:1px}
+.card-body{padding:4px 18px 18px;position:relative}
+.card-top{display:flex;align-items:flex-start;justify-content:space-between;margin-bottom:10px;gap:10px}
+.campaign-title{font-family:var(--head);font-size:16px;font-weight:700;letter-spacing:-.3px;line-height:1.2;margin-bottom:3px}
+.campaign-desc{font-size:12px;color:var(--muted2);line-height:1.5}
+.campaign-prize{font-size:12px;color:var(--gold);margin-top:4px;display:flex;align-items:center;gap:5px}
+.status-badge{display:inline-flex;align-items:center;gap:5px;font-size:10px;font-weight:600;letter-spacing:1px;text-transform:uppercase;padding:4px 10px;border-radius:20px;flex-shrink:0;white-space:nowrap}
+.status-active{background:rgba(16,185,129,0.12);color:var(--green);border:1px solid rgba(16,185,129,0.28)}
+.status-active::before{content:'';width:5px;height:5px;background:var(--green);border-radius:50%;animation:pulse 1.3s infinite}
+.status-closed{background:rgba(244,63,94,0.08);color:var(--red);border:1px solid rgba(244,63,94,0.18)}
+.status-sold{background:rgba(251,191,36,0.08);color:var(--gold);border:1px solid rgba(251,191,36,0.18)}
+/* divider inside card body */
+.card-divider{height:1px;margin:0 0 14px;opacity:0.12}
+
+/* COUNTDOWN in card */
+.card-countdown{display:flex;align-items:center;gap:6px;margin-bottom:12px;flex-wrap:wrap}
+.countdown-label{font-size:10px;color:var(--muted2);letter-spacing:1px;text-transform:uppercase}
+.cd-blocks{display:flex;gap:4px;align-items:center}
+.cd-block{background:rgba(255,255,255,0.06);border:1px solid rgba(255,255,255,0.1);border-radius:5px;padding:3px 7px;font-family:var(--mono);font-size:12px;font-weight:600;min-width:30px;text-align:center}
+.cd-block.urgent{color:var(--red);background:rgba(244,63,94,0.08);border-color:rgba(244,63,94,0.2)}
+.cd-colon{font-size:10px;color:var(--muted2);font-family:var(--mono)}
+
+/* PROGRESS */
+.progress-wrap{margin-bottom:16px}
+.progress-labels{display:flex;justify-content:space-between;margin-bottom:7px}
+.prog-left{font-size:12px;color:var(--muted2)}
+.prog-right{font-family:var(--mono);font-size:11px;color:var(--muted2)}
+.prog-right b{color:var(--text)}
+.progress-track{height:6px;background:rgba(255,255,255,0.07);border-radius:6px;overflow:hidden}
+.progress-fill{height:100%;border-radius:6px;transition:width .6s cubic-bezier(.4,0,.2,1);background:linear-gradient(90deg,var(--accent),var(--accent2))}
+.progress-fill.warn{background:linear-gradient(90deg,var(--gold),#f97316)}
+.progress-fill.full{background:linear-gradient(90deg,var(--red),#f97316)}
+
+/* BUY ROW */
+.buy-row{display:flex;align-items:center;justify-content:space-between;gap:12px;padding-top:14px;border-top:1px solid var(--border)}
+.price-wrap .price-lbl{font-size:10px;color:var(--muted);letter-spacing:1.5px;text-transform:uppercase;margin-bottom:3px}
+.price-wrap .price-val{font-family:var(--mono);font-size:20px;font-weight:600;color:var(--accent);display:flex;align-items:baseline;gap:5px}
+.price-wrap .price-val span{font-size:12px;color:var(--muted2);font-family:var(--font);font-weight:400}
+.buy-controls{display:flex;align-items:center;gap:8px}
+.qty-box{display:flex;align-items:center;border:1px solid var(--border-bright);border-radius:9px;overflow:hidden;background:rgba(255,255,255,0.03)}
+.qty-btn{background:none;border:none;color:var(--text);width:34px;height:34px;cursor:pointer;font-size:17px;display:flex;align-items:center;justify-content:center;transition:background .15s}
+.qty-btn:hover{background:rgba(255,255,255,0.07)}
+.qty-num{font-family:var(--mono);font-size:14px;font-weight:600;width:30px;text-align:center;border-left:1px solid var(--border);border-right:1px solid var(--border)}
+.buy-btn-main{background:linear-gradient(135deg,var(--accent),#0891b2);color:#04050a;border:none;border-radius:10px;padding:10px 18px;font-family:var(--font);font-size:13px;font-weight:700;cursor:pointer;transition:all .2s;white-space:nowrap;display:flex;align-items:center;gap:6px}
+.buy-btn-main:hover{transform:translateY(-1px);box-shadow:0 8px 24px rgba(0,229,255,0.25)}
+.buy-btn-main:active{transform:scale(0.97)}
+.buy-btn-main:disabled{opacity:0.4;cursor:not-allowed;transform:none;box-shadow:none}
+
+/* COIN CHIP */
+.coin-chip{display:inline-flex;align-items:center;gap:5px;padding:3px 8px 3px 3px;background:rgba(255,255,255,0.04);border:1px solid var(--border);border-radius:20px;font-size:11px;font-weight:500}
+.coin-chip-icon{width:18px;height:18px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:9px;font-weight:700}
+
+/* EMPTY */
+.empty-state{text-align:center;padding:60px 20px;color:var(--muted2)}
+.empty-icon{font-size:48px;margin-bottom:16px;opacity:0.5}
+.empty-state h3{font-family:var(--head);font-size:18px;font-weight:700;margin-bottom:8px;color:var(--muted2)}
+
+/* PAYMENT SHEET */
+.buy-overlay{position:fixed;inset:0;z-index:300;background:rgba(4,5,10,0.88);backdrop-filter:blur(14px);display:none;animation:fadeIn .2s ease;align-items:flex-end;justify-content:center}
+.buy-overlay.open{display:flex}
+.buy-sheet{background:var(--surface);border-radius:24px 24px 0 0;width:100%;max-width:520px;max-height:92vh;overflow-y:auto;padding:0 0 env(safe-area-inset-bottom);animation:slideUp .3s cubic-bezier(.4,0,.2,1)}
+.sheet-hdr{padding:16px 22px;display:flex;align-items:center;justify-content:space-between;border-bottom:1px solid var(--border);position:sticky;top:0;background:var(--surface);z-index:10;border-radius:24px 24px 0 0}
+.sheet-ttl{font-family:var(--head);font-size:16px;font-weight:700}
+.sheet-close{background:rgba(255,255,255,0.05);border:1px solid var(--border);color:var(--muted2);width:30px;height:30px;border-radius:8px;cursor:pointer;font-size:18px;display:flex;align-items:center;justify-content:center;transition:all .15s}
+.sheet-close:hover{border-color:var(--red);color:var(--red)}
+#sheet-body{padding:22px}
+
+/* PAYMENT ELEMENTS */
+.pay-step-bar{display:flex;gap:6px;margin-bottom:22px}
+.pay-step{flex:1;height:3px;border-radius:3px;background:rgba(255,255,255,0.08);transition:background .3s}
+.pay-step.done{background:var(--accent)}
+.pay-step.active{background:rgba(0,229,255,0.4)}
+.pay-summary{background:var(--card);border:1px solid var(--border);border-radius:12px;padding:16px;margin-bottom:18px}
+.pay-row{display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;font-size:13px}
+.pay-row:last-child{margin-bottom:0;border-top:1px solid var(--border);padding-top:8px;margin-top:4px}
+.pay-row .lbl{color:var(--muted2)}
+.pay-row .val{font-family:var(--mono);font-weight:600}
+.wallet-inp{width:100%;background:rgba(0,0,0,0.3);border:1px solid rgba(255,255,255,0.12);color:var(--text);font-family:var(--mono);font-size:12px;padding:13px 14px;border-radius:10px;outline:none;transition:all .18s;margin-bottom:16px}
+.wallet-inp:focus{border-color:var(--accent);box-shadow:0 0 0 3px rgba(0,229,255,0.08)}
+.wallet-inp::placeholder{color:var(--muted);font-family:var(--font);font-size:12px}
+.pay-icon-wrap{width:56px;height:56px;border-radius:50%;margin:0 auto 14px;display:flex;align-items:center;justify-content:center;font-size:22px}
+.pay-action-btn{width:100%;padding:14px;border:none;border-radius:11px;font-size:14px;font-weight:700;cursor:pointer;transition:all .22s;margin-top:4px}
+.pay-action-btn.primary{background:linear-gradient(135deg,var(--accent),#0891b2);color:#04050a}
+.pay-action-btn.primary:hover{transform:translateY(-1px);box-shadow:0 8px 28px rgba(0,229,255,0.3)}
+.pay-action-btn.coinbase-btn{background:linear-gradient(135deg,#0052ff,#3b82f6);color:#fff}
+.pay-action-btn.coinbase-btn:hover{transform:translateY(-1px);box-shadow:0 8px 28px rgba(0,82,255,0.35)}
+.pay-action-btn:disabled{opacity:0.5;cursor:not-allowed;transform:none !important;box-shadow:none !important}
+
+/* Payment method choice screen */
+.pay-method-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin:4px 0 16px}
+.pay-method-card{background:var(--card);border:2px solid var(--border);border-radius:14px;padding:20px 16px;text-align:center;cursor:pointer;transition:all .22s}
+.pay-method-card:hover{border-color:rgba(0,229,255,0.4);background:rgba(0,229,255,0.04);transform:translateY(-2px)}
+.pay-method-card.selected{border-color:var(--accent);background:rgba(0,229,255,0.06)}
+.pay-method-icon{font-size:32px;margin-bottom:10px;display:block}
+.pay-method-title{font-family:var(--head);font-size:13px;font-weight:700;margin-bottom:4px}
+.pay-method-desc{font-size:10px;color:var(--muted2);line-height:1.5}
+
+/* TX hash form */
+.tx-form-group{margin-bottom:14px}
+.tx-label{font-size:10px;color:var(--muted2);letter-spacing:2px;text-transform:uppercase;display:block;margin-bottom:7px;font-weight:600}
+.tx-input{width:100%;background:rgba(0,0,0,0.3);border:1px solid rgba(255,255,255,0.12);color:var(--text);font-family:var(--mono);font-size:12px;padding:12px 14px;border-radius:10px;outline:none;transition:all .18s}
+.tx-input:focus{border-color:var(--accent);box-shadow:0 0 0 3px rgba(0,229,255,0.08)}
+.tx-input::placeholder{color:var(--muted);font-family:var(--font);font-size:12px}
+.tx-select{appearance:none;background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6'%3E%3Cpath d='M0 0l5 6 5-6z' fill='%236b7280'/%3E%3C/svg%3E");background-repeat:no-repeat;background-position:right 12px center;cursor:pointer}
+.tx-select option{background:#0f1219}
+
+/* Status poll area */
+.status-poll-box{background:var(--card);border:1px solid var(--border);border-radius:12px;padding:18px;margin-bottom:16px;text-align:center}
+.status-spinner{width:36px;height:36px;border:3px solid rgba(0,229,255,0.15);border-top-color:var(--accent);border-radius:50%;animation:rotate 0.9s linear infinite;margin:0 auto 14px}
+.status-label{font-size:13px;font-weight:600;margin-bottom:4px}
+.status-sub{font-size:11px;color:var(--muted2)}
+
+/* Status pills */
+.pill-pending{display:inline-flex;align-items:center;gap:5px;padding:4px 10px;border-radius:20px;font-size:11px;font-weight:600;background:rgba(245,158,11,0.1);color:var(--gold);border:1px solid rgba(245,158,11,0.25)}
+.pill-paid{display:inline-flex;align-items:center;gap:5px;padding:4px 10px;border-radius:20px;font-size:11px;font-weight:600;background:rgba(16,185,129,0.1);color:var(--green);border:1px solid rgba(16,185,129,0.25)}
+.pill-failed{display:inline-flex;align-items:center;gap:5px;padding:4px 10px;border-radius:20px;font-size:11px;font-weight:600;background:rgba(244,63,94,0.08);color:var(--red);border:1px solid rgba(244,63,94,0.2)}
+
+/* Deposit address box */
+.deposit-addr{background:rgba(0,229,255,0.05);border:1px solid rgba(0,229,255,0.15);border-radius:10px;padding:14px;font-family:var(--mono);font-size:11px;color:var(--accent);word-break:break-all;cursor:pointer;transition:all .2s;margin-bottom:12px;line-height:1.6}
+.deposit-addr:hover{background:rgba(0,229,255,0.09)}
+
+.ticket-display{background:linear-gradient(135deg,rgba(0,229,255,0.05),rgba(124,58,237,0.05));border:1px solid rgba(0,229,255,0.2);border-radius:14px;padding:18px;margin:14px 0;text-align:center;animation:popIn .4s ease both}
+.ticket-id-lbl{font-size:9px;color:var(--muted2);letter-spacing:2px;text-transform:uppercase;margin-bottom:6px}
+.ticket-id{font-family:var(--mono);font-size:15px;font-weight:700;color:var(--accent);letter-spacing:2px;word-break:break-all;margin-bottom:10px;line-height:1.5}
+.ticket-info-row{font-size:12px;color:var(--muted2);display:flex;justify-content:space-between;margin-bottom:4px}
+.qr-mini{display:inline-block;background:white;padding:6px;border-radius:8px;margin-top:8px}
+
+/* WINNER PAGE */
+.winner-page{padding:0 20px 60px;max-width:var(--max);margin:0 auto;position:relative;z-index:1}
+.winner-hero{text-align:center;padding:40px 0 30px}
+.winner-trophy{font-size:64px;margin-bottom:16px;animation:float 3s ease-in-out infinite,popIn .5s ease both}
+.winner-page-title{font-family:var(--head);font-size:28px;font-weight:800;letter-spacing:-1px;margin-bottom:8px}
+.latest-winner-card{background:linear-gradient(135deg,rgba(251,191,36,0.06),rgba(245,158,11,0.03));border:1px solid rgba(251,191,36,0.25);border-radius:18px;padding:24px;margin-bottom:20px;animation:winnerShine 3s infinite}
+.latest-badge{display:inline-flex;align-items:center;gap:6px;font-size:10px;font-weight:700;letter-spacing:2px;text-transform:uppercase;color:var(--gold);background:rgba(251,191,36,0.1);padding:5px 12px;border-radius:20px;margin-bottom:14px;border:1px solid rgba(251,191,36,0.25)}
+.latest-ticket-id{font-family:var(--mono);font-size:16px;font-weight:700;color:var(--gold);letter-spacing:2px;word-break:break-all;margin-bottom:8px;line-height:1.5}
+.latest-wallet{font-family:var(--mono);font-size:11px;color:var(--accent);word-break:break-all}
+.winner-history-list{display:flex;flex-direction:column;gap:10px}
+.wh-card{background:var(--card);border:1px solid var(--border);border-radius:12px;padding:16px;display:flex;align-items:center;gap:14px;animation:fadeUp .3s ease both;transition:border-color .2s}
+.wh-card:hover{border-color:rgba(251,191,36,0.2)}
+.wh-rank{width:36px;height:36px;border-radius:9px;display:flex;align-items:center;justify-content:center;font-size:16px;flex-shrink:0;font-weight:700}
+.wh-ticket{font-family:var(--mono);font-size:11px;color:var(--gold);margin-top:3px;word-break:break-all}
+.wh-wallet{font-family:var(--mono);font-size:10px;color:var(--accent);margin-top:2px;word-break:break-all}
+
+/* PARTNERS SECTION */
+.partners-section{padding:40px 20px;max-width:var(--max);margin:0 auto;position:relative;z-index:1}
+.partners-title{text-align:center;font-size:11px;color:var(--muted2);letter-spacing:3px;text-transform:uppercase;margin-bottom:28px;font-weight:600}
+.partners-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:14px;margin-bottom:24px}
+.partner-card{background:var(--card);border:1px solid var(--border);border-radius:14px;padding:20px 16px;text-align:center;transition:all .22s;cursor:default;position:relative;overflow:hidden}
+.partner-card::before{content:'';position:absolute;inset:0;opacity:0;transition:opacity .2s}
+.partner-card:hover{transform:translateY(-2px);border-color:var(--border-bright)}
+.partner-logo{font-size:28px;margin-bottom:8px;display:block}
+.partner-logo svg,.partner-logo img{width:36px;height:36px;display:block;margin:0 auto 0}
+.pay-method-icon svg,.pay-method-icon img{width:32px;height:32px;display:inline-block;vertical-align:middle}
+.partner-name{font-family:var(--head);font-size:14px;font-weight:700;margin-bottom:3px}
+.partner-desc{font-size:10px;color:var(--muted2)}
+.partner-badge{display:inline-block;font-size:9px;font-weight:600;letter-spacing:1px;text-transform:uppercase;padding:2px 8px;border-radius:20px;margin-top:6px}
+.partner-badge.verified{background:rgba(16,185,129,0.1);color:var(--green);border:1px solid rgba(16,185,129,0.2)}
+.partners-note{text-align:center;font-size:11px;color:var(--muted);margin-top:14px}
+
+/* MEME COIN FILTER */
+.meme-filter{border-color:rgba(240,114,12,0.3)!important;color:#f0720c!important}
+.meme-filter.on{background:rgba(240,114,12,0.12)!important;border-color:rgba(240,114,12,0.45)!important}
+.meme-filter[data-filter="PEPE"]{border-color:rgba(74,222,128,0.3)!important;color:#4ade80!important}
+.meme-filter[data-filter="PEPE"].on{background:rgba(74,222,128,0.1)!important;border-color:rgba(74,222,128,0.4)!important}
+.meme-filter[data-filter="DOGE"]{border-color:rgba(194,166,51,0.3)!important;color:#c2a633!important}
+.meme-filter[data-filter="DOGE"].on{background:rgba(194,166,51,0.1)!important;border-color:rgba(194,166,51,0.4)!important}
+.meme-filter[data-filter="FLOKI"]{border-color:rgba(245,166,35,0.3)!important;color:#f5a623!important}
+.meme-filter[data-filter="FLOKI"].on{background:rgba(245,166,35,0.1)!important;border-color:rgba(245,166,35,0.4)!important}
+.meme-filter[data-filter="WIF"]{border-color:rgba(167,139,250,0.3)!important;color:#a78bfa!important}
+.meme-filter[data-filter="WIF"].on{background:rgba(167,139,250,0.1)!important;border-color:rgba(167,139,250,0.4)!important}
+.meme-filter[data-filter="BONK"]{border-color:rgba(249,115,22,0.3)!important;color:#f97316!important}
+.meme-filter[data-filter="BONK"].on{background:rgba(249,115,22,0.1)!important;border-color:rgba(249,115,22,0.4)!important}
+
+/* ── SECTION HEADERS ── */
+.draws-section-header{text-align:center;padding:22px 20px 4px;position:relative;z-index:1;max-width:var(--max);margin:0 auto;width:100%}
+.draws-section-header h2{font-family:var(--head);font-size:20px;font-weight:800;letter-spacing:-.5px;margin-bottom:4px}
+.draws-section-header p{font-size:12px;color:var(--muted2)}
+
+/* ── PROMO BANNER ── */
+.promo-banner{margin:16px 20px 0;max-width:var(--max);margin-left:auto;margin-right:auto;position:relative;z-index:1;border-radius:16px;overflow:hidden;cursor:pointer;transition:transform .2s,box-shadow .2s}
+.promo-banner:hover{transform:translateY(-2px);box-shadow:0 12px 36px rgba(0,229,255,0.18)}
+.promo-inner{background:linear-gradient(120deg,#0a1628 0%,#0d1f3c 40%,#0b1525 100%);border:1px solid rgba(0,229,255,0.2);border-radius:16px;padding:18px 20px;display:flex;align-items:center;gap:16px;position:relative;overflow:hidden}
+.promo-inner::before{content:'';position:absolute;inset:0;background:linear-gradient(120deg,rgba(0,229,255,0.06) 0%,transparent 60%,rgba(124,58,237,0.06) 100%);pointer-events:none}
+.promo-glow{position:absolute;top:-30px;right:-30px;width:120px;height:120px;background:radial-gradient(circle,rgba(0,229,255,0.15) 0%,transparent 70%);pointer-events:none}
+.promo-icon{font-size:36px;flex-shrink:0;filter:drop-shadow(0 2px 8px rgba(0,229,255,0.3))}
+.promo-text{flex:1;min-width:0}
+.promo-eyebrow{font-size:9px;font-weight:700;letter-spacing:2.5px;text-transform:uppercase;color:var(--accent);margin-bottom:3px}
+.promo-title{font-family:var(--head);font-size:15px;font-weight:800;letter-spacing:-.2px;margin-bottom:3px}
+.promo-sub{font-size:11.5px;color:var(--muted2);line-height:1.4}
+.promo-cta{font-size:10px;font-weight:700;color:var(--accent);background:rgba(0,229,255,0.1);border:1px solid rgba(0,229,255,0.25);border-radius:20px;padding:5px 12px;white-space:nowrap;flex-shrink:0;transition:all .18s}
+.promo-banner:hover .promo-cta{background:rgba(0,229,255,0.2)}
+
+/* ── SPECIAL LOTTERY ── */
+.special-section{padding:20px 20px 0;max-width:var(--max);margin:0 auto;width:100%;position:relative;z-index:1}
+.special-label{display:inline-flex;align-items:center;gap:7px;font-size:10px;font-weight:700;letter-spacing:2px;text-transform:uppercase;color:var(--gold);background:rgba(251,191,36,0.08);border:1px solid rgba(251,191,36,0.2);padding:5px 13px;border-radius:20px;margin-bottom:14px}
+.special-label::before{content:'';width:6px;height:6px;background:var(--gold);border-radius:50%;animation:pulse 1.4s infinite}
+.special-card{background:linear-gradient(135deg,rgba(251,191,36,0.06) 0%,rgba(245,158,11,0.03) 50%,rgba(124,58,237,0.06) 100%);border:2px solid rgba(251,191,36,0.35);border-radius:20px;overflow:hidden;position:relative;animation:winnerShine 4s infinite}
+.special-card::before{content:'';position:absolute;inset:0;background:linear-gradient(120deg,rgba(251,191,36,0.04) 0%,transparent 50%);pointer-events:none}
+.special-card-accent{height:4px;background:linear-gradient(90deg,var(--gold),#f97316,var(--gold));background-size:200% 100%;animation:shimmer 3s linear infinite}
+.special-card-body{padding:22px 20px}
+.special-card-top{display:flex;align-items:flex-start;justify-content:space-between;gap:12px;margin-bottom:16px}
+.special-card-title{font-family:var(--head);font-size:19px;font-weight:800;letter-spacing:-.4px;line-height:1.2;margin-bottom:5px}
+.special-prize-big{font-family:var(--mono);font-size:28px;font-weight:700;color:var(--gold);letter-spacing:-1px;line-height:1;display:flex;align-items:baseline;gap:6px}
+.special-prize-big span{font-size:14px;font-family:var(--font);font-weight:400;color:var(--muted2);letter-spacing:0}
+.special-badge{display:inline-flex;align-items:center;gap:5px;font-size:10px;font-weight:700;letter-spacing:1.5px;text-transform:uppercase;background:rgba(251,191,36,0.12);color:var(--gold);border:1px solid rgba(251,191,36,0.3);padding:5px 12px;border-radius:20px;flex-shrink:0}
+.special-features{display:flex;flex-wrap:wrap;gap:8px;margin-bottom:16px}
+.special-feat{display:inline-flex;align-items:center;gap:5px;font-size:11px;color:var(--muted2);background:rgba(255,255,255,0.04);border:1px solid var(--border);border-radius:8px;padding:4px 10px}
+.special-buy-row{display:flex;align-items:center;justify-content:space-between;gap:12px;padding-top:16px;border-top:1px solid rgba(251,191,36,0.15)}
+.special-buy-btn{background:linear-gradient(135deg,var(--gold),#f59e0b);color:#0a0700;border:none;border-radius:12px;padding:12px 22px;font-family:var(--font);font-size:14px;font-weight:800;cursor:pointer;transition:all .2s;display:flex;align-items:center;gap:7px}
+.special-buy-btn:hover{transform:translateY(-2px);box-shadow:0 10px 30px rgba(251,191,36,0.35)}
+
+/* ── TERMS & CONDITIONS ── */
+.tc-section{padding:30px 20px 20px;max-width:var(--max);margin:0 auto;width:100%;position:relative;z-index:1}
+.tc-card{background:var(--card);border:1px solid var(--border);border-radius:16px;overflow:hidden}
+.tc-header{display:flex;align-items:center;gap:12px;padding:16px 20px;border-bottom:1px solid transparent;cursor:pointer;transition:background .15s;-webkit-tap-highlight-color:transparent;user-select:none}
+.tc-header.open{border-bottom-color:var(--border)}
+.tc-header:hover{background:rgba(255,255,255,0.02)}
+.tc-header-icon{font-size:20px}
+.tc-header-text{flex:1}
+.tc-header-title{font-family:var(--head);font-size:14px;font-weight:700;margin-bottom:1px}
+.tc-header-sub{font-size:11px;color:var(--muted2)}
+.tc-chevron{color:var(--muted2);font-size:16px;transition:transform .25s;flex-shrink:0}
+.tc-chevron.open{transform:rotate(180deg)}
+.tc-body{display:none;padding:20px;font-size:12px;color:var(--muted2);line-height:1.8;max-height:320px;overflow-y:auto}
+.tc-body.open{display:block}
+.tc-body h4{font-family:var(--head);font-size:12px;font-weight:700;color:var(--text);letter-spacing:.5px;text-transform:uppercase;margin:14px 0 5px}
+.tc-body h4:first-child{margin-top:0}
+.tc-body p{margin-bottom:8px}
+.tc-body ul{padding-left:16px;margin-bottom:8px}
+.tc-body ul li{margin-bottom:4px}
+.tc-footer{padding:12px 20px;border-top:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px}
+.tc-agree-row{display:flex;align-items:center;gap:10px;font-size:12px;color:var(--muted2);cursor:pointer;-webkit-tap-highlight-color:transparent;user-select:none}
+.tc-checkbox{width:18px;height:18px;border:2px solid var(--border-bright);border-radius:5px;flex-shrink:0;display:flex;align-items:center;justify-content:center;transition:all .15s;background:transparent}
+.tc-checkbox.checked{background:var(--accent);border-color:var(--accent);color:#04050a;font-size:11px}
+.tc-version{font-size:10px;color:var(--muted);letter-spacing:.5px}
+
+/* ── CRYPTO TEAM ORBIT SECTION ── */
+.crypto-team-section{padding:50px 20px 40px;max-width:var(--max);margin:0 auto;position:relative;z-index:1;text-align:center}
+.crypto-team-title{font-family:var(--head);font-size:22px;font-weight:800;margin-bottom:6px;background:linear-gradient(90deg,#fff 0%,var(--accent) 60%,#a78bfa 100%);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text}
+.crypto-team-sub{font-size:12px;color:var(--muted2);margin-bottom:36px;letter-spacing:.3px}
+
+
+/* Meme parade strip */
+.meme-strip{display:flex;gap:14px;flex-wrap:wrap;justify-content:center;margin-bottom:10px}
+.meme-coin-card{display:flex;flex-direction:column;align-items:center;gap:7px;background:var(--card);border:1px solid var(--border);border-radius:14px;padding:14px 18px;transition:all .22s;cursor:default;min-width:90px}
+.meme-coin-card:hover{transform:translateY(-4px);border-color:var(--border-bright)}
+.meme-coin-card.shib:hover{border-color:rgba(240,114,12,0.5);box-shadow:0 8px 28px rgba(240,114,12,0.12)}
+.meme-coin-card.pepe:hover{border-color:rgba(74,222,128,0.5);box-shadow:0 8px 28px rgba(74,222,128,0.12)}
+.meme-coin-img{width:44px;height:44px;border-radius:50%;object-fit:contain}
+.meme-coin-name{font-family:var(--head);font-size:12px;font-weight:700}
+.meme-coin-tag{font-size:9px;letter-spacing:1px;text-transform:uppercase;padding:2px 8px;border-radius:20px;font-weight:600}
+.shib .meme-coin-tag{background:rgba(240,114,12,0.1);color:#f0720c;border:1px solid rgba(240,114,12,0.25)}
+.pepe .meme-coin-tag{background:rgba(74,222,128,0.1);color:#4ade80;border:1px solid rgba(74,222,128,0.25)}
+
+@keyframes shimmerText{0%{background-position:0% 50%}50%{background-position:100% 50%}100%{background-position:0% 50%}}
+
+/* TOAST */
+.toast{position:fixed;bottom:24px;right:24px;z-index:999;background:var(--surface);border:1px solid var(--border-bright);border-radius:10px;padding:12px 20px;font-size:13px;font-weight:500;color:var(--text);box-shadow:0 8px 28px rgba(0,0,0,0.5);display:none;animation:slideUp .25s ease;max-width:300px}
+.toast.show{display:block}
+.toast.ok{border-color:rgba(16,185,129,0.35);color:var(--green)}
+.toast.err{border-color:rgba(244,63,94,0.35);color:var(--red)}
+.toast.info{border-color:rgba(0,229,255,0.35);color:var(--accent)}
+
+/* CONFETTI */
+.confetti-piece{position:fixed;width:8px;height:8px;border-radius:2px;animation:confetti 3s ease-in forwards;pointer-events:none;z-index:999}
+
+/* INFO BOX */
+.info-box{border-radius:10px;padding:12px 14px;font-size:11px;line-height:1.7;margin-bottom:14px}
+.info-box.warning{background:rgba(245,158,11,0.06);border:1px solid rgba(245,158,11,0.18);color:var(--muted2)}
+.info-box.info{background:rgba(0,229,255,0.05);border:1px solid rgba(0,229,255,0.15);color:var(--muted2)}
+.info-box.success{background:rgba(16,185,129,0.06);border:1px solid rgba(16,185,129,0.2);color:var(--green)}
+.info-box.error{background:rgba(244,63,94,0.06);border:1px solid rgba(244,63,94,0.2);color:var(--red)}
+
+/* ═══════════ MOBILE RESPONSIVE (≤640px) ═══════════ */
+@media (max-width: 640px) {
+  /* Header — tighten and prevent overflow */
+  header{height:54px;padding:0 12px;gap:8px}
+  .logo{font-size:17px;gap:7px}
+  .logo-mark{width:32px;height:32px}
+  .nav-links{gap:0}
+  .nav-link{padding:6px 9px;font-size:11.5px}
+  .live-badge{font-size:10px;padding:4px 9px}
+
+  /* Hero — bigger headline, tighter spacing */
+  .hero{padding:32px 16px 26px}
+  .hero-tag{font-size:10px;padding:6px 14px;letter-spacing:1.5px;margin-bottom:18px}
+  .hero h1{font-size:clamp(28px,9vw,42px);letter-spacing:-1.5px;margin-bottom:12px}
+  .hero p{font-size:14px;margin-bottom:24px;padding:0 8px}
+  .hero-stats{max-width:100%;border-radius:12px}
+  .hstat{padding:13px 6px}
+  .hstat-n{font-size:17px}
+  .hstat-l{font-size:8px;letter-spacing:1px}
+
+  /* Filters — touch-friendly horizontal scroll */
+  .filters{padding:16px 16px 0;gap:7px}
+  .filter-btn{padding:8px 13px;font-size:12px;min-height:38px}
+  .filter-logo{width:14px;height:14px}
+
+  /* Campaigns */
+  .campaigns{padding:14px 16px;gap:13px;padding-bottom:32px}
+  .card-body{padding:16px}
+  .campaign-title{font-size:16px}
+  .campaign-desc{font-size:11.5px}
+  .campaign-prize{font-size:11.5px}
+  .status-badge{font-size:9px;padding:3px 8px}
+
+  /* Countdown blocks — prevent wrap squish */
+  .card-countdown{gap:5px}
+  .cd-block{padding:3px 6px;font-size:11px;min-width:26px}
+  .countdown-label{font-size:9px}
+
+  /* Progress */
+  .prog-left{font-size:11.5px}
+  .prog-right{font-size:10.5px}
+
+  /* Buy row — stack on tiny screens */
+  .buy-row{gap:8px;flex-wrap:wrap}
+  .price-wrap .price-val{font-size:18px}
+  .price-wrap .price-lbl{font-size:9px}
+
+  /* Buy sheet — full-screen feel on mobile */
+  .buy-sheet{max-height:95vh;border-radius:20px 20px 0 0}
+
+  /* Partners section */
+  .partners-section{padding:28px 16px}
+  .partners-grid{grid-template-columns:repeat(3,1fr);gap:8px}
+  .partner-card{padding:14px 8px}
+  .partner-logo{font-size:24px}
+  .partner-logo svg,.partner-logo img{width:30px;height:30px}
+  .partner-name{font-size:12px}
+  .partner-desc{font-size:10px}
+  .partner-badge{font-size:8.5px;padding:2px 7px}
+
+  /* Winner page */
+  .winner-page{padding:0 16px 40px}
+
+  /* Ticker — tighter on mobile */
+  .ticker-bar{height:30px}
+  .ticker-item{font-size:10px;padding:0 18px;gap:6px}
+  .ticker-logo{width:12px;height:12px}
+
+  /* Toast — bottom-center on mobile */
+  .toast{right:12px;left:12px;bottom:14px;max-width:none;text-align:center}
+
+
+}
+
+/* Extra small phones (iPhone SE etc, ≤380px) */
+@media (max-width: 380px) {
+  .hero h1{font-size:26px;letter-spacing:-1px}
+  .hero p{font-size:13px}
+  .hstat-n{font-size:15px}
+  .nav-link{padding:5px 7px;font-size:11px}
+  .live-badge span{display:none}
+  .live-badge{padding:4px 7px}
+  .live-badge::after{content:'live'}
+  .partners-grid{grid-template-columns:1fr 1fr;gap:8px}
+}
+
+/* Tablet (641-900px) — keep readable max-width */
+@media (min-width: 641px) and (max-width: 900px) {
+  .hero h1{font-size:48px}
+  .partners-grid{grid-template-columns:repeat(3,1fr)}
+}
+
+/* Reduced motion */
+@media (prefers-reduced-motion: reduce) {
+  .ticker-inner,*{animation-duration:0.001ms !important;animation-iteration-count:1 !important}
+}
+
+/* ═══════════ BOTTOM NAV BAR (mobile only) ═══════════ */
+.bottom-nav{display:none}
+
+@media (max-width: 640px) {
+  .bottom-nav{
+    display:flex;
+    position:fixed;
+    bottom:0;left:0;right:0;
+    z-index:200;
+    background:rgba(7,9,18,0.97);
+    backdrop-filter:blur(24px);
+    -webkit-backdrop-filter:blur(24px);
+    border-top:1px solid var(--border);
+    height:64px;
+    padding:0 6px;
+    padding-bottom:env(safe-area-inset-bottom);
+    align-items:center;
+    justify-content:space-around;
+  }
+  .bn-item{
+    flex:1;
+    display:flex;
+    flex-direction:column;
+    align-items:center;
+    justify-content:center;
+    gap:4px;
+    padding:8px 4px;
+    border-radius:14px;
+    cursor:pointer;
+    border:none;
+    background:none;
+    transition:all .15s;
+    color:var(--muted2);
+    min-height:52px;
+    -webkit-tap-highlight-color:transparent;
+    position:relative;
+  }
+  .bn-item.on{color:var(--accent)}
+  .bn-item.on::before{content:'';position:absolute;top:6px;left:50%;transform:translateX(-50%);width:36px;height:36px;background:rgba(0,229,255,0.1);border-radius:10px;z-index:-1}
+  .bn-item:active{transform:scale(0.9)}
+  .bn-icon{font-size:21px;line-height:1;display:block}
+  .bn-label{font-size:9.5px;font-weight:600;letter-spacing:.4px;text-transform:uppercase;font-family:var(--font);line-height:1}
+  .bn-badge{position:absolute;top:4px;right:calc(50% - 22px);background:var(--accent);color:#04050a;font-size:8px;font-weight:800;min-width:16px;height:16px;border-radius:8px;display:flex;align-items:center;justify-content:center;padding:0 3px}
+
+  /* Header: hide nav links on mobile */
+  header{height:54px;padding:0 14px;gap:8px}
+  .nav-links{display:none}
+  .logo{font-size:18px;gap:8px}
+  .logo-mark{width:32px;height:32px}
+  .live-badge{font-size:10px;padding:4px 10px}
+
+  /* Body padding for bottom nav */
+  body{padding-bottom:64px}
+
+  /* Hero */
+  .hero{padding:22px 16px 18px}
+  .hero-tag{font-size:10px;padding:5px 13px;letter-spacing:1.5px;margin-bottom:14px}
+  .hero h1{font-size:clamp(26px,8.5vw,40px);letter-spacing:-1.5px;margin-bottom:10px}
+  .hero p{font-size:13.5px;margin-bottom:18px;padding:0 4px}
+  .hero-stats{max-width:100%;border-radius:12px}
+  .hstat{padding:12px 6px}
+  .hstat-n{font-size:18px}
+  .hstat-l{font-size:8px;letter-spacing:1px}
+
+  /* Filters */
+  .filters{padding:14px 14px 0;gap:7px}
+  .filter-btn{padding:9px 13px;font-size:12px;min-height:40px;border-radius:10px}
+  .filter-logo{width:14px;height:14px}
+
+  /* Campaigns */
+  .campaigns{padding:12px 14px;gap:12px;padding-bottom:16px}
+  .campaign-card{border-radius:16px}
+  .card-body{padding:15px}
+  .card-top{gap:8px;margin-bottom:11px}
+  .campaign-title{font-size:15.5px;letter-spacing:-.2px}
+  .campaign-desc{font-size:11.5px;margin-top:2px}
+  .campaign-prize{font-size:12px;gap:4px;margin-top:5px}
+  .status-badge{font-size:9px;padding:3px 9px;border-radius:16px}
+  .card-countdown{gap:5px;margin-bottom:10px}
+  .cd-block{padding:3px 6px;font-size:11px;min-width:26px}
+  .countdown-label{font-size:9px}
+  .progress-wrap{margin-bottom:13px}
+  .prog-left{font-size:11.5px}
+  .prog-right{font-size:10.5px}
+  .progress-track{height:5px}
+  .buy-row{gap:10px;padding-top:13px;align-items:center}
+  .price-wrap .price-val{font-size:19px}
+  .price-wrap .price-lbl{font-size:9px}
+  .buy-controls{gap:6px}
+  .qty-btn{width:38px;height:38px;font-size:18px}
+  .qty-num{font-size:14px;width:28px}
+  .buy-btn-main{padding:11px 16px;font-size:13px;border-radius:11px}
+
+  /* Buy sheet */
+  .buy-sheet{max-height:96vh;border-radius:22px 22px 0 0}
+  #sheet-body{padding:18px}
+  .sheet-hdr{padding:14px 18px;border-radius:22px 22px 0 0}
+  .pay-method-grid{grid-template-columns:1fr 1fr;gap:10px}
+  .pay-action-btn{padding:13px;font-size:13.5px}
+  .wallet-inp{font-size:11.5px;padding:12px 13px}
+
+  /* Partners */
+  .partners-section{padding:24px 14px 16px}
+  .partners-grid{grid-template-columns:repeat(3,1fr);gap:8px}
+  .partner-card{padding:14px 8px;border-radius:12px}
+  .partner-logo{font-size:24px}
+  .partner-logo svg,.partner-logo img{width:28px;height:28px}
+  .partner-name{font-size:11.5px}
+  .partner-desc{font-size:9.5px}
+  .partner-badge{font-size:8px;padding:2px 6px}
+
+  /* Winners */
+  .winner-page{padding:0 14px 16px}
+  .winner-hero{padding:24px 0 18px}
+  .winner-trophy{font-size:52px}
+  .winner-page-title{font-size:22px}
+  .latest-winner-card{padding:16px;border-radius:14px}
+  .wh-card{padding:14px}
+
+  /* Ticker */
+  .ticker-bar{height:30px}
+  .ticker-item{font-size:10px;padding:0 16px;gap:6px}
+  .ticker-logo{width:12px;height:12px}
+
+  /* Toast — above bottom nav */
+  .toast{right:12px;left:12px;bottom:74px;max-width:none;text-align:center;font-size:12.5px}
+
+
+  /* Orbit */
+  .promo-banner{margin:12px 14px 0}
+  .promo-inner{padding:14px 15px;gap:12px}
+  .promo-icon{font-size:28px}
+  .promo-title{font-size:14px}
+  .promo-sub{font-size:11px}
+  .promo-cta{font-size:9px;padding:4px 10px}
+  .special-section{padding:16px 14px 0}
+  .draws-section-header{padding:18px 14px 2px}
+  .draws-section-header h2{font-size:17px}
+  .special-card-body{padding:18px 16px}
+  .special-card-title{font-size:17px}
+  .special-prize-big{font-size:22px}
+  .special-buy-btn{padding:11px 16px;font-size:13px}
+  .tc-section{padding:20px 14px 14px}
+  .crypto-team-section{padding:36px 16px 30px}
+  .crypto-team-title{font-size:19px}
+  .meme-strip{gap:10px}
+  .meme-coin-card{padding:12px 14px;min-width:82px;border-radius:12px}
+  .meme-coin-img{width:38px;height:38px}
+  .meme-coin-name{font-size:11px}
+}
+
+@media (max-width: 380px) {
+  .hero h1{font-size:25px;letter-spacing:-1px}
+  .hero p{font-size:13px}
+  .hstat-n{font-size:15px}
+  .live-badge span{display:none}
+  .live-badge{padding:4px 7px}
+  .live-badge::after{content:'live'}
+  .partners-grid{grid-template-columns:1fr 1fr;gap:7px}
+  .buy-btn-main{padding:10px 12px;font-size:12px}
+  .campaign-title{font-size:14.5px}
+}
+
+@media (min-width: 641px) and (max-width: 900px) {
+  .hero h1{font-size:48px}
+  .partners-grid{grid-template-columns:repeat(3,1fr)}
+}
+</style>
+</head>
+<body>
+
+<!-- Floating crypto coins background -->
+
+
+<!-- TICKER (live prices from CoinGecko) -->
+<div class="ticker-bar">
+  <div class="ticker-inner" id="ticker-inner">
+    <span class="ticker-item"><span class="ticker-dot"></span>Loading live prices…</span>
+  </div>
+</div>
+
+<!-- HEADER -->
+<header>
+  <div class="logo" onclick="showPage('home')">
+    <div class="logo-mark">
+      <svg viewBox="0 0 40 40" fill="none" xmlns="http://www.w3.org/2000/svg" style="width:38px;height:38px;filter:drop-shadow(0 4px 16px rgba(251,146,60,0.5))">
+        <defs>
+          <linearGradient id="hdrA" x1="0" y1="0" x2="40" y2="40" gradientUnits="userSpaceOnUse"><stop stop-color="#fb923c"/><stop offset="1" stop-color="#ea580c"/></linearGradient>
+          <linearGradient id="hdrB" x1="0" y1="0" x2="40" y2="40" gradientUnits="userSpaceOnUse"><stop stop-color="#fef3c7"/><stop offset="1" stop-color="#fbbf24"/></linearGradient>
+        </defs>
+        <circle cx="20" cy="20" r="20" fill="url(#hdrA)"/>
+        <circle cx="20" cy="20" r="19.5" stroke="rgba(255,255,255,0.18)" stroke-width="1" fill="none"/>
+        <text x="20" y="29" text-anchor="middle" font-family="Arial Black,Arial,sans-serif" font-weight="900" font-size="27" fill="url(#hdrB)">₿</text>
+      </svg>
+    </div>
+    <span>TicketChain</span>
+  </div>
+  <div class="nav-links">
+    <button class="nav-link on" id="nav-home" onclick="showPage('home')">Campaigns</button>
+    <button class="nav-link" id="nav-winners" onclick="showPage('winners')">Winners</button>
+    <button class="nav-link" id="nav-partners" onclick="showPage('partners')">Contact</button>
+  </div>
+  <div class="header-right">
+    <div class="live-badge"><span id="hdr-live-count">0</span> active</div>
+  </div>
+</header>
+
+<!-- ══════════ HOME PAGE ══════════ -->
+<div class="page-section on" id="page-home">
+  <div class="hero">
+    <div class="hero-tag">🎰 Crypto Lottery Platform</div>
+    <h1>Win Big With<br><span class="line2">Crypto Tickets</span></h1>
+    <p>Buy tickets with your favourite cryptocurrency. Transparent, instant, and fair draws powered by blockchain.</p>
+    <div class="hero-stats">
+      <div class="hstat"><span class="hstat-n" id="hs-campaigns">0</span><span class="hstat-l">Active Draws</span></div>
+      <div class="hstat"><span class="hstat-n" id="hs-tickets">0</span><span class="hstat-l">Tickets Sold</span></div>
+      <div class="hstat"><span class="hstat-n" id="hs-winners">0</span><span class="hstat-l">Winners</span></div>
+    </div>
+  </div>
+  <div class="filters">
+    <button class="filter-btn on" data-filter="all">All Draws</button>
+    <button class="filter-btn" data-filter="BTC"><img class="filter-logo" src="https://assets.coingecko.com/coins/images/1/small/bitcoin.png" alt="BTC"/>Bitcoin</button>
+    <button class="filter-btn" data-filter="ETH"><img class="filter-logo" src="https://assets.coingecko.com/coins/images/279/small/ethereum.png" alt="ETH"/>Ethereum</button>
+    <button class="filter-btn" data-filter="XRP"><img class="filter-logo" src="https://assets.coingecko.com/coins/images/44/small/xrp-symbol-white-128.png" alt="XRP"/>XRP</button>
+    <button class="filter-btn" data-filter="USDT"><img class="filter-logo" src="https://assets.coingecko.com/coins/images/325/small/Tether.png" alt="USDT"/>USDT</button>
+    <button class="filter-btn" data-filter="USDC"><img class="filter-logo" src="https://assets.coingecko.com/coins/images/6319/small/USD_Coin_icon.png" alt="USDC"/>USDC</button>
+    <button class="filter-btn" data-filter="SOL"><img class="filter-logo" src="https://assets.coingecko.com/coins/images/4128/small/solana.png" alt="SOL"/>Solana</button>
+    <button class="filter-btn" data-filter="BNB"><img class="filter-logo" src="https://assets.coingecko.com/coins/images/825/small/bnb-icon2_2x.png" alt="BNB"/>BNB</button>
+    <button class="filter-btn" data-filter="ADA"><img class="filter-logo" src="https://assets.coingecko.com/coins/images/975/small/cardano.png" alt="ADA"/>Cardano</button>
+    <button class="filter-btn" data-filter="TRX"><img class="filter-logo" src="https://assets.coingecko.com/coins/images/1094/small/tron-logo.png" alt="TRX"/>Tron</button>
+    <button class="filter-btn" data-filter="TON"><img class="filter-logo" src="https://assets.coingecko.com/coins/images/17980/small/ton_symbol.png" alt="TON"/>TON</button>
+    <button class="filter-btn" data-filter="LTC"><img class="filter-logo" src="https://assets.coingecko.com/coins/images/2/small/litecoin.png" alt="LTC"/>Litecoin</button>
+    <button class="filter-btn meme-filter" data-filter="SHIB"><img class="filter-logo" src="https://assets.coingecko.com/coins/images/11939/small/shiba.png" alt="SHIB"/>SHIB 🔥</button>
+    <button class="filter-btn meme-filter" data-filter="PEPE"><img class="filter-logo" src="https://assets.coingecko.com/coins/images/29850/small/pepe-token.jpeg" alt="PEPE"/>PEPE 🐸</button>
+    <button class="filter-btn meme-filter" data-filter="DOGE"><img class="filter-logo" src="https://assets.coingecko.com/coins/images/5/small/dogecoin.png" alt="DOGE"/>DOGE 🐶</button>
+    <button class="filter-btn meme-filter" data-filter="FLOKI"><img class="filter-logo" src="https://assets.coingecko.com/coins/images/16746/small/PNG_image.png" alt="FLOKI"/>FLOKI</button>
+    <button class="filter-btn meme-filter" data-filter="WIF"><img class="filter-logo" src="https://assets.coingecko.com/coins/images/33566/small/dogwifhat.jpg" alt="WIF"/>WIF 🎩</button>
+    <button class="filter-btn meme-filter" data-filter="BONK"><img class="filter-logo" src="https://assets.coingecko.com/coins/images/28600/small/bonk.jpg" alt="BONK"/>BONK</button>
+  </div>
+  <!-- PROMO BANNER -->
+  <div class="promo-banner" onclick="showToast('🎁 Promo code applied! 10% bonus tickets on your next purchase.','ok')">
+    <div class="promo-inner">
+      <div class="promo-glow"></div>
+      <div class="promo-icon">🎁</div>
+      <div class="promo-text">
+        <div class="promo-eyebrow">🔥 Limited Time Offer</div>
+        <div class="promo-title">New Member Bonus — 10% Extra Tickets</div>
+        <div class="promo-sub">First purchase only. Use code <strong style="color:var(--accent)">WELCOME10</strong> at checkout.</div>
+      </div>
+      <div class="promo-cta">Claim →</div>
+    </div>
+  </div>
+
+  <!-- SPECIAL LOTTERY — rendered dynamically from Firebase -->
+  <div class="special-section" id="special-section" style="display:none">
+    <div class="special-label">⭐ Special Edition</div>
+    <div class="special-card" id="special-lottery-card">
+      <div class="special-card-accent"></div>
+      <div class="special-card-body" id="special-card-body"></div>
+    </div>
+  </div>
+
+  <div class="campaigns" id="campaigns-list"></div>
+  <div class="partners-section">
+    <div class="partners-title">Trusted & Recognized By</div>
+    <div class="partners-grid">
+      <div class="partner-card">
+        <span class="partner-logo"><svg viewBox="0 0 1024 1024" xmlns="http://www.w3.org/2000/svg"><circle cx="512" cy="512" r="512" fill="#0052ff"/><path d="M516 720c-114.9 0-208-93.1-208-208s93.1-208 208-208c103 0 188.6 74.9 205 173.4h209.4C912.3 286.9 729.5 112 516 112 295.5 112 116 291.5 116 512s179.5 400 400 400c213.5 0 396.3-174.9 414.4-365.4H721C704.6 645.1 619 720 516 720z" fill="#fff"/></svg></span>
+        <div class="partner-name" style="color:#0052ff">Coinbase</div>
+        <div class="partner-desc">Auto crypto payments</div>
+        <span class="partner-badge verified">Integrated</span>
+      </div>
+      <div class="partner-card">
+        <span class="partner-logo">🔒</span>
+        <div class="partner-name" style="color:#10b981">Secure</div>
+        <div class="partner-desc">Webhook-verified payments</div>
+        <span class="partner-badge verified">Protected</span>
+      </div>
+      <div class="partner-card">
+        <span class="partner-logo">⛓</span>
+        <div class="partner-name" style="color:#fbbf24">On-Chain</div>
+        <div class="partner-desc">TX hash verification</div>
+        <span class="partner-badge verified">Verified</span>
+      </div>
+    </div>
+    
+  </div>
+
+  <!-- ── CRYPTO TEAM ORBIT ── -->
+  <div class="crypto-team-section">
+    <div class="crypto-team-title">Our Crypto Universe</div>
+    <div class="crypto-team-sub">All major chains accepted — choose your weapon 🚀</div>
+
+
+
+    <!-- Meme coin spotlight -->
+    <div style="font-size:10px;color:var(--muted2);letter-spacing:3px;text-transform:uppercase;font-weight:600;margin-bottom:18px">🔥 Meme Coin Corner</div>
+    <div class="meme-strip">
+      <div class="meme-coin-card shib">
+        <img class="meme-coin-img" src="https://assets.coingecko.com/coins/images/11939/small/shiba.png" alt="SHIB"/>
+        <div class="meme-coin-name" style="color:#f0720c">Shiba Inu</div>
+        <div class="meme-coin-tag">SHIB</div>
+        <div style="font-size:9px;color:var(--muted2);margin-top:2px">To the moon 🚀</div>
+      </div>
+      <div class="meme-coin-card pepe">
+        <img class="meme-coin-img" src="https://assets.coingecko.com/coins/images/29850/small/pepe-token.jpeg" alt="PEPE"/>
+        <div class="meme-coin-name" style="color:#4ade80">Pepe</div>
+        <div class="meme-coin-tag">PEPE</div>
+        <div style="font-size:9px;color:var(--muted2);margin-top:2px">Feels good 🐸</div>
+      </div>
+      <div class="meme-coin-card" style="border-color:rgba(194,166,51,0.25)">
+        <img class="meme-coin-img" src="https://assets.coingecko.com/coins/images/5/small/dogecoin.png" alt="DOGE"/>
+        <div class="meme-coin-name" style="color:#c2a633">Dogecoin</div>
+        <div class="meme-coin-tag" style="background:rgba(194,166,51,0.1);color:#c2a633;border:1px solid rgba(194,166,51,0.25)">DOGE</div>
+        <div style="font-size:9px;color:var(--muted2);margin-top:2px">Much wow 🐶</div>
+      </div>
+      <div class="meme-coin-card" style="border-color:rgba(245,166,35,0.25)">
+        <img class="meme-coin-img" src="https://assets.coingecko.com/coins/images/16746/small/PNG_image.png" alt="FLOKI"/>
+        <div class="meme-coin-name" style="color:#f5a623">Floki</div>
+        <div class="meme-coin-tag" style="background:rgba(245,166,35,0.1);color:#f5a623;border:1px solid rgba(245,166,35,0.25)">FLOKI</div>
+        <div style="font-size:9px;color:var(--muted2);margin-top:2px">Viking 🪖</div>
+      </div>
+      <div class="meme-coin-card" style="border-color:rgba(167,139,250,0.25)">
+        <img class="meme-coin-img" src="https://assets.coingecko.com/coins/images/33566/small/dogwifhat.jpg" alt="WIF"/>
+        <div class="meme-coin-name" style="color:#a78bfa">dogwifhat</div>
+        <div class="meme-coin-tag" style="background:rgba(167,139,250,0.1);color:#a78bfa;border:1px solid rgba(167,139,250,0.25)">WIF</div>
+        <div style="font-size:9px;color:var(--muted2);margin-top:2px">Hat on 🎩</div>
+      </div>
+      <div class="meme-coin-card" style="border-color:rgba(249,115,22,0.25)">
+        <img class="meme-coin-img" src="https://assets.coingecko.com/coins/images/28600/small/bonk.jpg" alt="BONK"/>
+        <div class="meme-coin-name" style="color:#f97316">Bonk</div>
+        <div class="meme-coin-tag" style="background:rgba(249,115,22,0.1);color:#f97316;border:1px solid rgba(249,115,22,0.25)">BONK</div>
+        <div style="font-size:9px;color:var(--muted2);margin-top:2px">Bonk! 🔨</div>
+      </div>
+    </div>
+    <div style="font-size:11px;color:var(--muted);margin-top:10px">Meme coins accepted for manual payment — configure your address in admin</div>
+  </div>
+  <!-- /crypto team section -->
+
+  <!-- TERMS & CONDITIONS -->
+  <div class="tc-section">
+    <div class="tc-card">
+      <div class="tc-header" id="tc-header" onclick="toggleTC()">
+        <div class="tc-header-icon">📋</div>
+        <div class="tc-header-text">
+          <div class="tc-header-title">Terms & Conditions</div>
+          <div class="tc-header-sub">Please read before participating in any draw</div>
+        </div>
+        <div class="tc-chevron" id="tc-chevron">▼</div>
+      </div>
+      <div class="tc-body" id="tc-body">
+        <h4>1. Eligibility</h4>
+        <p>Participation in TicketChain lottery draws is open to individuals aged 18 years or older. By purchasing a ticket, you confirm that you meet this age requirement and that lottery participation is legal in your jurisdiction.</p>
+        <ul>
+          <li>Employees and affiliates of TicketChain are not eligible to participate.</li>
+          <li>Participants must have a valid cryptocurrency wallet address.</li>
+          <li>Only one account per person is permitted.</li>
+        </ul>
+        <h4>2. Ticket Purchases</h4>
+        <p>All ticket purchases are final and non-refundable once payment has been submitted. Tickets are valid only for the specific draw they were purchased for. Ticket IDs are generated at the time of purchase and serve as your proof of entry.</p>
+        <ul>
+          <li>Maximum 10 tickets per person per draw unless otherwise stated.</li>
+          <li>Special Edition draws may have different purchase limits.</li>
+          <li>Tickets are non-transferable.</li>
+        </ul>
+        <h4>3. Draws & Winners</h4>
+        <p>All draws are conducted using a provably fair blockchain-based random selection process. Results are final and cannot be contested. Winners are notified via the wallet address provided at time of purchase.</p>
+        <ul>
+          <li>Prizes are distributed within 72 hours of draw completion.</li>
+          <li>Unclaimed prizes are forfeited after 30 days.</li>
+          <li>TicketChain reserves the right to cancel or reschedule draws due to technical issues.</li>
+        </ul>
+        <h4>4. Payments & Cryptocurrency</h4>
+        <p>All payments are made in cryptocurrency. TicketChain is not responsible for incorrect wallet addresses provided by participants. Transaction fees are the responsibility of the buyer. Price fluctuations in cryptocurrency do not affect ticket validity.</p>
+        <h4>5. Privacy</h4>
+        <p>Your wallet address and name are stored securely for draw administration purposes only. We do not sell or share personal data with third parties. All on-chain transactions are publicly visible by nature of blockchain technology.</p>
+        <h4>6. Limitation of Liability</h4>
+        <p>TicketChain is not liable for losses arising from network congestion, wallet errors, or technical failures outside our control. Participation is at your own risk. This platform is provided "as is" without warranties of any kind.</p>
+        <h4>7. Governing Law</h4>
+        <p>These terms are governed by applicable laws. By participating you agree to these terms in full. TicketChain reserves the right to update these terms at any time with notice on this platform.</p>
+      </div>
+      <div class="tc-footer">
+        <div class="tc-agree-row" onclick="toggleTCAgree()">
+          <div class="tc-checkbox" id="tc-checkbox"></div>
+          <span>I have read and agree to the Terms & Conditions</span>
+        </div>
+        <div class="tc-version" id="tc-version">v1.0 · April 2026</div>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<!-- ══════════ WINNERS PAGE ══════════ -->
+<div class="page-section" id="page-winners">
+  <div class="winner-page">
+    <div class="winner-hero">
+      <div class="winner-trophy">🏆</div>
+      <h2 class="winner-page-title">Hall of Champions</h2>
+      <p style="font-size:14px;color:var(--muted2)">Every winner, verified on-chain.</p>
+    </div>
+    <div id="latest-winner-wrap"></div>
+    <div class="winner-history-list" id="winners-history-list"></div>
+  </div>
+</div>
+
+<!-- ══════════ PARTNERS PAGE ══════════ -->
+<div class="page-section" id="page-partners">
+  <div class="partners-section" style="padding-top:40px">
+    <h2 style="font-family:var(--head);font-size:24px;font-weight:800;text-align:center;margin-bottom:8px">Our Partners</h2>
+    <p style="text-align:center;color:var(--muted2);font-size:13px;margin-bottom:32px">Powering the TicketChain ecosystem</p>
+    <div class="partners-grid">
+      <div class="partner-card">
+        <span class="partner-logo"><svg viewBox="0 0 1024 1024" xmlns="http://www.w3.org/2000/svg"><circle cx="512" cy="512" r="512" fill="#0052ff"/><path d="M516 720c-114.9 0-208-93.1-208-208s93.1-208 208-208c103 0 188.6 74.9 205 173.4h209.4C912.3 286.9 729.5 112 516 112 295.5 112 116 291.5 116 512s179.5 400 400 400c213.5 0 396.3-174.9 414.4-365.4H721C704.6 645.1 619 720 516 720z" fill="#fff"/></svg></span>
+        <div class="partner-name" style="color:#0052ff">Coinbase Commerce</div>
+        <div class="partner-desc">Automated crypto payment processing</div>
+        <span class="partner-badge verified">Payment Partner</span>
+      </div>
+      <div class="partner-card">
+        <span class="partner-logo">🔥</span>
+        <div class="partner-name" style="color:#f97316">Firebase</div>
+        <div class="partner-desc">Real-time database & backend</div>
+        <span class="partner-badge verified">Infrastructure</span>
+      </div>
+      <div class="partner-card">
+        <span class="partner-logo">⛓</span>
+        <div class="partner-name" style="color:#fbbf24">Multi-Chain</div>
+        <div class="partner-desc">BTC, ETH, SOL, XRP & more</div>
+        <span class="partner-badge verified">Supported</span>
+      </div>
+    </div>
+    <!-- ── CONTACT US SECTION ── -->
+    <div style="margin:36px 0 0;padding:0 4px">
+      <div style="text-align:center;margin-bottom:20px">
+        <div style="font-family:var(--head);font-size:20px;font-weight:800;margin-bottom:6px">Contact Us</div>
+        <div style="font-size:13px;color:var(--muted2)">Have a question? We're here to help.</div>
+      </div>
+      <div style="background:linear-gradient(135deg,rgba(0,229,255,0.06),rgba(124,58,237,0.06));border:1px solid rgba(0,229,255,0.18);border-radius:18px;padding:24px 20px;text-align:center">
+        <div style="width:52px;height:52px;border-radius:50%;background:rgba(0,229,255,0.1);border:2px solid rgba(0,229,255,0.25);display:flex;align-items:center;justify-content:center;font-size:22px;margin:0 auto 14px">✉️</div>
+        <div style="font-size:11px;color:var(--muted2);letter-spacing:2px;text-transform:uppercase;font-weight:600;margin-bottom:10px">Support &amp; Enquiries</div>
+        <a href="mailto:ticketchainadmin@gmail.com" style="font-family:var(--mono);font-size:15px;font-weight:700;color:var(--accent);text-decoration:none;letter-spacing:.5px;display:inline-block;margin-bottom:16px;word-break:break-all">ticketchainadmin@gmail.com</a>
+        <div style="display:flex;flex-direction:column;gap:8px;margin-bottom:18px">
+          <div style="display:flex;align-items:center;gap:10px;background:rgba(255,255,255,0.03);border:1px solid var(--border);border-radius:10px;padding:10px 14px;font-size:12px;color:var(--muted2);text-align:left">
+            <span style="font-size:16px;flex-shrink:0">🏆</span><span>Winner notifications &amp; prize claims</span>
+          </div>
+          <div style="display:flex;align-items:center;gap:10px;background:rgba(255,255,255,0.03);border:1px solid var(--border);border-radius:10px;padding:10px 14px;font-size:12px;color:var(--muted2);text-align:left">
+            <span style="font-size:16px;flex-shrink:0">💳</span><span>Payment issues &amp; TX verification</span>
+          </div>
+          <div style="display:flex;align-items:center;gap:10px;background:rgba(255,255,255,0.03);border:1px solid var(--border);border-radius:10px;padding:10px 14px;font-size:12px;color:var(--muted2);text-align:left">
+            <span style="font-size:16px;flex-shrink:0">❓</span><span>General questions &amp; support</span>
+          </div>
+        </div>
+        <a href="mailto:ticketchainadmin@gmail.com" onclick="showToast('Opening email …','ok')" style="display:inline-flex;align-items:center;gap:8px;background:linear-gradient(135deg,var(--accent),#0891b2);color:#04050a;font-family:var(--font);font-size:13px;font-weight:700;padding:12px 26px;border-radius:11px;text-decoration:none">
+          ✉️ Send us an Email
+        </a>
+        <div style="font-size:11px;color:var(--muted2);margin-top:14px">We aim to respond within <strong style="color:var(--text)">24 hours</strong></div>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<!-- ══════════ BUY SHEET ══════════ -->
+<div class="buy-overlay" id="buy-overlay">
+  <div class="buy-sheet">
+    <div class="sheet-hdr">
+      <div class="sheet-ttl" id="sheet-ttl">Buy Tickets</div>
+      <button class="sheet-close" id="sheet-close">×</button>
+    </div>
+    <div id="sheet-body"></div>
+  </div>
+</div>
+
+<!-- BOTTOM NAV (mobile) -->
+<nav class="bottom-nav" aria-label="Main navigation">
+  <button class="bn-item on" id="bn-home" onclick="showPage('home')" aria-label="Campaigns">
+    <div class="bn-icon-wrap">
+      <span class="bn-icon">🎫</span>
+      <span class="bn-badge" id="bn-badge-count">0</span>
+    </div>
+    <span class="bn-label">Draws</span>
+  </button>
+  <button class="bn-item" id="bn-winners" onclick="showPage('winners')" aria-label="Winners">
+    <span class="bn-icon">🏆</span>
+    <span class="bn-label">Winners</span>
+  </button>
+  <button class="bn-item" id="bn-partners" onclick="showPage('partners')" aria-label="Contact">
+    <span class="bn-icon">✉️</span>
+    <span class="bn-label">Contact</span>
+  </button>
+</nav>
+
+<div class="toast" id="toast"></div>
+
+<!-- Firebase SDK -->
+<script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
+<script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-database.js"></script>
+
+<script>
+// ── FIREBASE CONFIG ────────────────────────────────────────────────────────────
+var firebaseConfig = {
+  apiKey: "AIzaSyCxpHUilW_WW3I9b8RqAIqL2IxA-7drINw",
+  databaseURL: "https://cripto-ticket-chain-default-rtdb.firebaseio.com/",
+  projectId: "cripto-ticket-chain"
+};
+
+// ── COINBASE COMMERCE CONFIG ───────────────────────────────────────────────────
+var BACKEND_URL = 'https://YOUR-BACKEND-URL.com';
+
+// ── IN-MEMORY CACHE ────────────────────────────────────────────────────────────
+var _cache = { campaigns: [], tickets: [], winners: [] };
+var _fbReady = false;
+var db_ref = null;
+var _firebaseOk = false;
+
+function getDB()      { return { campaigns: _cache.campaigns.slice() }; }
+function getTickets() { return _cache.tickets.slice(); }
+function getWinners() { return _cache.winners.slice(); }
+
+// ── SAFE FIREBASE INIT ────────────────────────────────────────────────────────
+try {
+  if (typeof firebase !== 'undefined') {
+    firebase.initializeApp(firebaseConfig);
+    db_ref = firebase.database();
+    _firebaseOk = true;
+  }
+} catch(e) {
+  console.warn('Firebase init failed:', e);
+}
+
+// ── FIREBASE LISTENERS (only if Firebase loaded) ───────────────────────────────
+if (_firebaseOk && db_ref) {
+  db_ref.ref('campaigns').on('value', function(snap) {
+    var val = snap.val() || {};
+    _cache.campaigns = Object.values(val).sort(function(a,b){ return (b.createdAt||0)-(a.createdAt||0); });
+    if (_fbReady) { renderAll(); }
+  });
+  db_ref.ref('tickets').on('value', function(snap) {
+    var val = snap.val() || {};
+    _cache.tickets = Object.values(val);
+  });
+  db_ref.ref('winners').on('value', function(snap) {
+    var val = snap.val() || {};
+    _cache.winners = Object.values(val).sort(function(a,b){ return (b.timestamp||0)-(a.timestamp||0); });
+    if (!_fbReady) { _fbReady = true; renderAll(); }
+    else { renderAll(); }
+  });
+  db_ref.ref('wallets').on('value', function(snap) {
+    _liveWallets = snap.val() || {};
+    if (_fbReady && state.buyingCampaign) renderSheet();
+  });
+  // Ensure app renders even if only campaigns loaded (no winners/tickets yet)
+  setTimeout(function() {
+    if (!_fbReady) { _fbReady = true; renderAll(); }
+  }, 4000);
+}
+
+// ── SEED DATA ─────────────────────────────────────────────────────────────────
+function buildSeedCampaigns() {
+  var now = Date.now();
+  var d1 = new Date(now + 3*24*3600*1000);
+  var d2 = new Date(now + 7*24*3600*1000);
+  var d3 = new Date(now + 1*24*3600*1000);
+  return [
+    { id:'camp_1', name:'Bitcoin Jackpot Round I', coin:'BTC', price:0.001, totalTickets:500, soldTickets:142, status:'active', createdAt:now-3600000, prize:'0.1 BTC', desc:'Win 0.1 BTC - top prize pool', endDate: d1.toISOString().split('T')[0], endTime:'23:59' },
+    { id:'camp_2', name:'Ethereum Grand Draw', coin:'ETH', price:0.02, totalTickets:300, soldTickets:280, status:'active', createdAt:now-7200000, prize:'1.5 ETH', desc:'Near sell-out! Huge ETH prize pool', endDate: d2.toISOString().split('T')[0], endTime:'18:00' },
+    { id:'camp_3', name:'Solana Speed Round', coin:'SOL', price:0.5, totalTickets:200, soldTickets:200, status:'closed', createdAt:now-86400000, prize:'50 SOL', desc:'Completed - winner selected', endDate:'', endTime:'' },
+    { id:'camp_4', name:'XRP Community Draw', coin:'XRP', price:50, totalTickets:1000, soldTickets:88, status:'active', createdAt:now-1800000, prize:'10,000 XRP', desc:'Community-run XRP lottery', endDate: d3.toISOString().split('T')[0], endTime:'12:00' },
+    { id:'camp_5', name:'USDT Mega Pool', coin:'USDT', price:10, totalTickets:2000, soldTickets:340, status:'active', createdAt:now-900000, prize:'$15,000 USDT', desc:'Stable-coin mega prize pool!', endDate: d2.toISOString().split('T')[0], endTime:'20:00' },
+  ];
+}
+
+function seedIfEmpty() {
+  if (!_firebaseOk || !db_ref) {
+    // No Firebase — only load local seed if nothing cached yet
+    if (_cache.campaigns.length === 0) {
+      _cache.campaigns = buildSeedCampaigns().sort(function(a,b){ return (b.createdAt||0)-(a.createdAt||0); });
+    }
+    _fbReady = true;
+    renderAll();
+    return;
+  }
+  // Firebase available — check the meta/seeded flag first
+  // If seeded flag exists, NEVER re-seed (respects admin deletes)
+  dbRef('meta/seeded').once('value', function(snap) {
+    if (snap.val() === true) return; // already seeded — admin controls the data now
+    // First time only — write seed campaigns
+    dbRef('campaigns').once('value', function(csnap) {
+      if (csnap.exists()) return; // campaigns already exist, don't overwrite
+      var campaigns = buildSeedCampaigns();
+      var obj = {};
+      campaigns.forEach(function(c){ obj[c.id] = c; });
+      dbRef('campaigns').set(obj);
+      dbRef('meta/seeded').set(true);
+    });
+  });
+}
+
+// ── STATE ─────────────────────────────────────────────────────────────────────
+var state = {
+  filter: 'all',
+  page: 'home',
+  buyingCampaign: null,
+  buyQty: 1,
+  buyerName: '',
+  wallet: '',
+  payStep: 1,        // 1=info, 2=method-select, 3=paying, 4=success
+  payMethod: null,   // 'coinbase' | 'manual'
+  lastTicketId: null,
+  currentTicketRef: null,  // Firebase ref to current pending ticket
+  pollInterval: null
+};
+
+var COINS = {
+  BTC:  { color:'#f7931a', bg:'rgba(247,147,26,0.1)',  border:'rgba(247,147,26,0.25)',  icon:'₿', network:'Bitcoin (BTC) Network',     logo:'https://assets.coingecko.com/coins/images/1/small/bitcoin.png',     addr:'bc1qxy2kgdygjrsqtzq2n0yrf2493p83kkfjhx0wlh' },
+  ETH:  { color:'#627eea', bg:'rgba(98,126,234,0.1)',  border:'rgba(98,126,234,0.25)',  icon:'Ξ', network:'Ethereum (ERC-20) Network', logo:'https://assets.coingecko.com/coins/images/279/small/ethereum.png',  addr:'0x742d35Cc6634C0532925a3b844Bc454e4438f44e' },
+  XRP:  { color:'#00aae4', bg:'rgba(0,170,228,0.1)',   border:'rgba(0,170,228,0.25)',   icon:'✕', network:'XRP Ledger',                logo:'https://assets.coingecko.com/coins/images/44/small/xrp-symbol-white-128.png', addr:'rHb9CJAWyB4rj91VRWn96DkukG4bwdtyTh' },
+  SOL:  { color:'#9945ff', bg:'rgba(153,69,255,0.1)',  border:'rgba(153,69,255,0.25)',  icon:'◎', network:'Solana Network',            logo:'https://assets.coingecko.com/coins/images/4128/small/solana.png',    addr:'DYw8jCTfwHNRJhhmFcbXvVDTqWMEVFBX6ZKUmkj5ir21' },
+  USDT: { color:'#26a17b', bg:'rgba(38,161,123,0.1)',  border:'rgba(38,161,123,0.25)',  icon:'₮', network:'Ethereum (ERC-20) Network', logo:'https://assets.coingecko.com/coins/images/325/small/Tether.png',     addr:'0x742d35Cc6634C0532925a3b844Bc454e4438f44e' },
+  BNB:  { color:'#f3ba2f', bg:'rgba(243,186,47,0.1)',  border:'rgba(243,186,47,0.25)',  icon:'♦', network:'BNB Smart Chain (BEP-20)',  logo:'https://assets.coingecko.com/coins/images/825/small/bnb-icon2_2x.png',addr:'' },
+  ADA:  { color:'#0ea5e9', bg:'rgba(14,165,233,0.1)',  border:'rgba(14,165,233,0.25)',  icon:'₳', network:'Cardano Network',           logo:'https://assets.coingecko.com/coins/images/975/small/cardano.png',    addr:'' },
+  LTC:  { color:'#bebebe', bg:'rgba(190,190,190,0.1)', border:'rgba(190,190,190,0.25)', icon:'Ł', network:'Litecoin Network',          logo:'https://assets.coingecko.com/coins/images/2/small/litecoin.png',     addr:'' },
+  TRX:  { color:'#ef0027', bg:'rgba(239,0,39,0.1)',    border:'rgba(239,0,39,0.25)',    icon:'⚡', network:'Tron (TRC-20) Network',     logo:'https://assets.coingecko.com/coins/images/1094/small/tron-logo.png', addr:'' },
+  USDC: { color:'#2775ca', bg:'rgba(39,117,202,0.1)',  border:'rgba(39,117,202,0.25)',  icon:'$', network:'Ethereum (ERC-20) Network', logo:'https://assets.coingecko.com/coins/images/6319/small/USD_Coin_icon.png', addr:'' },
+  TON:  { color:'#0098ea', bg:'rgba(0,152,234,0.1)',   border:'rgba(0,152,234,0.25)',   icon:'◈', network:'TON Network',               logo:'https://assets.coingecko.com/coins/images/17980/small/ton_symbol.png', addr:'' },
+  LINK: { color:'#4d7eff', bg:'rgba(77,126,255,0.1)',  border:'rgba(77,126,255,0.25)',  icon:'⬡', network:'Ethereum (ERC-20) Network', logo:'https://assets.coingecko.com/coins/images/877/small/chainlink-new-logo.png', addr:'' },
+  XLM:  { color:'#08b5e5', bg:'rgba(8,181,229,0.1)',   border:'rgba(8,181,229,0.25)',   icon:'★', network:'Stellar Network',           logo:'https://assets.coingecko.com/coins/images/100/small/Stellar_symbol_black_RGB.png', addr:'' },
+  SHIB: { color:'#f0720c', bg:'rgba(240,114,12,0.1)',  border:'rgba(240,114,12,0.28)',  icon:'🐕', network:'Ethereum (ERC-20) Network', logo:'https://assets.coingecko.com/coins/images/11939/small/shiba.png',  addr:'' },
+  PEPE: { color:'#4ade80', bg:'rgba(74,222,128,0.1)',  border:'rgba(74,222,128,0.28)',  icon:'🐸', network:'Ethereum (ERC-20) Network', logo:'https://assets.coingecko.com/coins/images/29850/small/pepe-token.jpeg', addr:'' },
+  DOGE: { color:'#c2a633', bg:'rgba(194,166,51,0.1)',  border:'rgba(194,166,51,0.28)',  icon:'🐶', network:'Dogecoin Network',          logo:'https://assets.coingecko.com/coins/images/5/small/dogecoin.png',   addr:'' },
+  FLOKI:{ color:'#f5a623', bg:'rgba(245,166,35,0.1)',  border:'rgba(245,166,35,0.28)',  icon:'🐕', network:'Ethereum (ERC-20) Network', logo:'https://assets.coingecko.com/coins/images/16746/small/PNG_image.png', addr:'' },
+  WIF:  { color:'#a78bfa', bg:'rgba(167,139,250,0.1)', border:'rgba(167,139,250,0.28)', icon:'🐕', network:'Solana Network',            logo:'https://assets.coingecko.com/coins/images/33566/small/dogwifhat.jpg', addr:'' },
+  BONK: { color:'#f97316', bg:'rgba(249,115,22,0.1)',  border:'rgba(249,115,22,0.28)',  icon:'🔨', network:'Solana Network',            logo:'https://assets.coingecko.com/coins/images/28600/small/bonk.jpg',   addr:'' },
+};
+// Live wallet addresses from Firebase (overrides COINS.addr when set)
+var _liveWallets = {};
+
+// Safe Firebase ref helper — returns a no-op stub when Firebase is unavailable
+function dbRef(path) {
+  if (_firebaseOk && db_ref) return db_ref.ref(path);
+  return { set: function(){ return Promise.resolve(); }, update: function(){ return Promise.resolve(); }, once: function(ev, cb){ if(cb) cb({val:function(){return null;}, exists:function(){return false;}}); }, on: function(){}, off: function(){} };
+}
+
+function getCoin(s){ return COINS[s]||{color:'#6b7280',bg:'rgba(107,114,128,0.1)',border:'rgba(107,114,128,0.25)',icon:'●',logo:'',addr:''}; }
+// Get wallet address: live Firebase address takes priority over hardcoded fallback
+// Live wallet entries can be either "addr_string" (old) or {addr, network} (new)
+function _liveWalletEntry(sym) { return _liveWallets[sym]; }
+function getWalletAddr(sym) {
+  var v = _liveWalletEntry(sym);
+  if (typeof v === 'string') return v || getCoin(sym).addr || '';
+  if (v && v.addr) return v.addr;
+  return getCoin(sym).addr || '';
+}
+function getWalletNetwork(sym) {
+  // Admin-set network from Firebase takes priority; falls back to default in COINS
+  var v = _liveWalletEntry(sym);
+  if (v && typeof v === 'object' && v.network) return v.network;
+  return getCoin(sym).network || (sym + ' Network');
+}
+function fmt(n,d){ d=(d===undefined)?4:d; return parseFloat(Number(n).toFixed(d)).toString(); }
+function $(id){ return document.getElementById(id); }
+function escHtml(s){ return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
+function timeAgo(ts){
+  var s=Math.floor((Date.now()-ts)/1000);
+  if(s<60)return s+'s ago';
+  if(s<3600)return Math.floor(s/60)+'m ago';
+  if(s<86400)return Math.floor(s/3600)+'h ago';
+  return Math.floor(s/86400)+'d ago';
+}
+function genTicketId(){
+  var chars='ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+  var p1='',p2='',p3='';
+  for(var i=0;i<2;i++)p1+=chars[Math.floor(Math.random()*chars.length)];
+  for(var i=0;i<6;i++)p2+=chars[Math.floor(Math.random()*chars.length)];
+  for(var i=0;i<6;i++)p3+=chars[Math.floor(Math.random()*chars.length)];
+  return 'TC-'+p1+Date.now().toString(36).toUpperCase().slice(-4)+'-'+p3;
+}
+
+// ── PAGE NAV ─────────────────────────────────────────────────────────────────
+function showPage(page) {
+  state.page = page;
+  ['home','winners','partners'].forEach(function(p){
+    var el = $('page-'+p);
+    var nav = $('nav-'+p);
+    var bn  = $('bn-'+p);
+    if(el)  el.classList.toggle('on', p===page);
+    if(nav) nav.classList.toggle('on', p===page);
+    if(bn)  bn.classList.toggle('on', p===page);
+  });
+  window.scrollTo(0,0);
+  if(page==='winners') renderWinnersPage();
+  if(page==='home') renderAll();
+}
+
+// ── RENDER ALL ────────────────────────────────────────────────────────────────
+function renderAll() {
+  var db = getDB();
+  var campaigns = db.campaigns || [];
+  var active = campaigns.filter(function(c){ return c.status==='active'; });
+  var tickets = getTickets();
+  var winners = getWinners();
+
+  $('hdr-live-count').textContent = active.length;
+  $('hs-campaigns').textContent = active.length;
+  $('hs-tickets').textContent = tickets.length;
+  $('hs-winners').textContent = winners.length;
+  var bnBadge = $('bn-badge-count');
+  if(bnBadge) { bnBadge.textContent = active.length; bnBadge.style.display = active.length ? '' : 'none'; }
+
+  renderSpecialCard();
+
+  var list = $('campaigns-list');
+  if(!list) return;
+
+  // Exclude the featured (Special Edition) campaign from the normal list — it's shown in the Special section above
+  var nonSpecial = campaigns.filter(function(c){ return !c.isSpecial; });
+  var filtered = state.filter==='all' ? nonSpecial : nonSpecial.filter(function(c){ return c.coin===state.filter; });
+  if(!filtered.length) {
+    list.innerHTML='<div class="empty-state"><div class="empty-icon">🎫</div><h3>'+(state.filter==='all' ? 'No draws available' : 'No '+state.filter+' draws')+'</h3><p style="font-size:13px">'+(state.filter==='all' ? 'Check back soon — new campaigns are coming.' : 'Try the "All Draws" filter above.')+'</p></div>';
+    return;
+  }
+
+  // Build a single card HTML (shared by both grouped and flat rendering)
+  // Build a fully coin-team-themed card
+  function buildCard(c, idx, firstInGroup) {
+    var coin = getCoin(c.coin);
+    var cr = coin.color;
+    var pct = Math.round((c.soldTickets||0)/c.totalTickets*100);
+    var isClosed = c.status!=='active';
+    var isFull = (c.soldTickets||0)>=c.totalTickets;
+
+    function hexAlpha(hex, a) {
+      var h = hex.replace('#','');
+      if(h.length===3) h=h[0]+h[0]+h[1]+h[1]+h[2]+h[2];
+      var r=parseInt(h.substr(0,2),16),g=parseInt(h.substr(2,2),16),b=parseInt(h.substr(4,2),16);
+      return 'rgba('+r+','+g+','+b+','+a+')';
+    }
+
+    var statusBadge = isFull
+      ? '<span class="status-badge status-sold">Sold Out</span>'
+      : (isClosed
+          ? '<span class="status-badge status-closed">Closed</span>'
+          : '<span class="status-badge status-active">Live</span>');
+
+    var usdRate = getUsdPrice(c.coin);
+    var usdVal  = usdRate ? fmtUsd(c.price * usdRate) : '';
+    var usdHtml = usdVal ? '<div style="font-size:10px;color:'+hexAlpha(cr,0.7)+';margin-top:1px">approx '+usdVal+' USD</div>' : '';
+
+    var cardStyle =
+      'border-color:'+hexAlpha(cr,0.32)+';'
+      +'background:linear-gradient(160deg,'+hexAlpha(cr,0.09)+' 0%,var(--card) 55%);'
+      +'box-shadow:0 0 0 1px '+hexAlpha(cr,0.07)+' inset,0 8px 28px '+hexAlpha(cr,0.1)+';'
+      +'animation-delay:'+(idx*.07)+'s';
+
+    var bandStyle =
+      'background:linear-gradient(90deg,'+hexAlpha(cr,0.2)+' 0%,'+hexAlpha(cr,0.05)+' 100%);'
+      +'border-bottom:1px solid '+hexAlpha(cr,0.16);
+
+    var btnBase = 'border:none;border-radius:10px;padding:10px 18px;font-family:var(--font);font-size:13px;font-weight:700;white-space:nowrap;display:flex;align-items:center;gap:6px;';
+    var btnStyle = (isClosed||isFull)
+      ? btnBase+'opacity:0.35;cursor:not-allowed;background:'+hexAlpha(cr,0.5)+';color:#04050a;'
+      : btnBase+'cursor:pointer;transition:all .2s;background:linear-gradient(135deg,'+cr+','+hexAlpha(cr,0.7)+');color:#04050a;box-shadow:0 4px 14px '+hexAlpha(cr,0.38)+';';
+
+    var qtyBorderStyle = 'border:1px solid '+hexAlpha(cr,0.28)+';border-radius:9px;overflow:hidden;background:'+hexAlpha(cr,0.07)+';display:flex;align-items:center';
+    var qtyDivider = 'border-left:1px solid '+hexAlpha(cr,0.2)+';border-right:1px solid '+hexAlpha(cr,0.2);
+
+    return '<div class="campaign-card" style="'+cardStyle+'">'
+      +(coin.logo ? '<img class="card-coin-watermark" src="'+coin.logo+'" alt=""/>' : '')
+      +'<div class="card-header-band" style="'+bandStyle+'">'
+        +'<div class="card-coin-badge" style="background:'+hexAlpha(cr,0.18)+';border-color:'+hexAlpha(cr,0.4)+'">'
+          +(coin.logo ? '<img src="'+coin.logo+'" style="width:22px;height:22px;object-fit:contain"/>' : '<span style="font-size:16px">'+coin.icon+'</span>')
+        +'</div>'
+        +'<div style="flex:1;min-width:0">'
+          +'<div class="card-coin-name" style="color:'+cr+'">'+escHtml(c.coin)+'</div>'
+          +'<div class="card-team-label">'+escHtml(c.coin)+' TEAM DRAW</div>'
+        +'</div>'
+        +statusBadge
+      +'</div>'
+      +'<div class="card-body">'
+        +'<div class="card-top"><div style="flex:1;min-width:0;padding-right:8px">'
+          +'<div class="campaign-title">'+escHtml(c.name)+'</div>'
+          +(c.desc ? '<div class="campaign-desc">'+escHtml(c.desc)+'</div>' : '')
+          +(c.prize ? '<div class="campaign-prize">&#127942; '+escHtml(c.prize)+'</div>' : '')
+        +'</div></div>'
+        +(c.endDate ? '<div class="card-countdown" id="cd-'+c.id+'"><span class="countdown-label">Ends in</span>'+countdownHtml(c.endDate,c.endTime)+'</div>' : '')
+        +'<div class="progress-wrap">'
+          +'<div class="progress-labels">'
+            +'<span class="prog-left" style="color:'+hexAlpha(cr,0.85)+'">'+pct+'% sold</span>'
+            +'<span class="prog-right"><b>'+(c.soldTickets||0)+'</b>/'+c.totalTickets+'</span>'
+          +'</div>'
+          +'<div class="progress-track" style="background:'+hexAlpha(cr,0.13)+'">'
+            +'<div class="progress-fill" style="width:'+pct+'%;background:linear-gradient(90deg,'+cr+','+hexAlpha(cr,0.65)+')"></div>'
+          +'</div>'
+        +'</div>'
+        +'<div class="buy-row" style="border-top:1px solid '+hexAlpha(cr,0.14)+'">'
+          +'<div class="price-wrap">'
+            +'<div class="price-lbl">Per Ticket</div>'
+            +'<div class="price-val" style="color:'+cr+'">'+fmt(c.price,4)+' <span>'+c.coin+'</span></div>'
+            +usdHtml
+          +'</div>'
+          +'<div class="buy-controls">'
+            +'<div style="'+qtyBorderStyle+'">'
+              +'<button class="qty-btn" style="color:'+cr+'" onclick="changeQty(\''+c.id+'\',false)">&minus;</button>'
+              +'<span class="qty-num" id="qty-'+c.id+'" style="'+qtyDivider+'">1</span>'
+              +'<button class="qty-btn" style="color:'+cr+'" onclick="changeQty(\''+c.id+'\',true)">+</button>'
+            +'</div>'
+            +'<button style="'+btnStyle+'" onclick="openBuySheet(\''+c.id+'\')"'+(isClosed||isFull?' disabled':'')+'>&\#127903; Buy</button>'
+          +'</div>'
+        +'</div>'
+      +'</div>'
+    +'</div>';
+  }
+
+  // When filter is 'all' → group by coin team
+  if(state.filter === 'all') {
+    // Collect unique coin order (preserving first-seen order, active first)
+    var coinOrder = [];
+    var byTeam = {};
+    filtered.forEach(function(c) {
+      if(!byTeam[c.coin]) { byTeam[c.coin] = []; coinOrder.push(c.coin); }
+      byTeam[c.coin].push(c);
+    });
+    // Sort: teams with active draws first
+    coinOrder.sort(function(a, b) {
+      var aHasActive = byTeam[a].some(function(c){ return c.status==='active'; });
+      var bHasActive = byTeam[b].some(function(c){ return c.status==='active'; });
+      if(aHasActive && !bHasActive) return -1;
+      if(!aHasActive && bHasActive) return 1;
+      return 0;
+    });
+    var html = '';
+    var cardIdx = 0;
+    coinOrder.forEach(function(sym) {
+      var coin = getCoin(sym);
+      var teamDraws = byTeam[sym];
+      var activeCount = teamDraws.filter(function(c){ return c.status==='active'; }).length;
+      // Team section header
+      html += '<div style="display:flex;align-items:center;gap:10px;padding:6px 2px 8px;margin-top:'+(cardIdx===0?'0':'8px')+'">'
+        +'<img src="'+coin.logo+'" style="width:22px;height:22px;border-radius:50%;flex-shrink:0" onerror="this.style.display=\'none\'"/>'
+        +'<span style="font-family:var(--head);font-size:13px;font-weight:700;color:'+coin.color+'">'+escHtml(sym)+' Team</span>'
+        +'<span style="font-size:10px;color:var(--muted2);letter-spacing:1px">'+teamDraws.length+' draw'+(teamDraws.length!==1?'s':'')+' · '+(activeCount?activeCount+' live':'none active')+'</span>'
+        +'<div style="flex:1;height:1px;background:linear-gradient(90deg,'+coin.color+'44,transparent)"></div>'
+        +'</div>';
+      teamDraws.forEach(function(c, i) {
+        html += buildCard(c, cardIdx, i===0);
+        cardIdx++;
+      });
+    });
+    list.innerHTML = html;
+  } else {
+    // Single-team filter: flat list (no group headers needed)
+    list.innerHTML = filtered.map(function(c, idx){
+      return buildCard(c, idx, idx===0);
+    }).join('');
+  }
+}
+
+// ── COUNTDOWN ─────────────────────────────────────────────────────────────────
+function countdownHtml(endDate, endTime) {
+  if (!endDate) return '<span style="font-size:11px;color:var(--muted2)">No expiry</span>';
+  var end = new Date(endDate + 'T' + (endTime||'23:59') + ':00');
+  var diff = end - Date.now();
+  if (diff <= 0) return '<span style="font-size:11px;color:var(--red)">Expired</span>';
+  var days = Math.floor(diff / 86400000);
+  var hrs  = Math.floor((diff % 86400000) / 3600000);
+  var mins = Math.floor((diff % 3600000) / 60000);
+  var urgent = diff < 3600000;
+  var cls = urgent ? ' urgent' : '';
+  return '<div class="cd-blocks">'
+    + (days > 0 ? '<span class="cd-block'+cls+'">'+days+'d</span><span class="cd-colon">:</span>' : '')
+    + '<span class="cd-block'+cls+'">'+String(hrs).padStart(2,'0')+'h</span>'
+    + '<span class="cd-colon">:</span>'
+    + '<span class="cd-block'+cls+'">'+String(mins).padStart(2,'0')+'m</span>'
+    + '</div>';
+}
+
+// ── WINNERS PAGE ─────────────────────────────────────────────────────────────
+function renderWinnersPage() {
+  var winners = getWinners();
+  var latestWrap = $('latest-winner-wrap');
+  var historyList = $('winners-history-list');
+  if(!latestWrap) return;
+  if(winners.length===0){
+    latestWrap.innerHTML='<div class="empty-state" style="padding:40px 0"><div class="empty-icon">🏆</div><h3>No winners yet</h3><p style="font-size:13px;margin-top:4px">Check back after the first draw</p></div>';
+    historyList.innerHTML='';
+    return;
+  }
+  var latest = winners[0];
+  var coin = getCoin(latest.coin);
+  latestWrap.innerHTML = '<div class="latest-winner-card">'
+    +'<div class="latest-badge">🏆 Latest Winner</div>'
+    +'<div style="font-size:13px;font-weight:600;margin-bottom:6px">'+escHtml(latest.campaignName)+'</div>'
+    +'<div class="latest-ticket-id">'+escHtml(latest.ticketId)+'</div>'
+    +(latest.walletAddress?'<div class="latest-wallet">'+escHtml(latest.walletAddress)+'</div>':'')
+    +'<div style="display:flex;gap:10px;align-items:center;margin-top:12px">'
+    +'<div class="coin-chip" style="border-color:'+coin.border+'"><div class="coin-chip-icon" style="background:'+coin.bg+';padding:3px">'+(coin.logo?'<img class="coin-logo-img" src="'+coin.logo+'" alt="'+escHtml(latest.coin||'')+'"/>':'<span style="color:'+coin.color+'">'+coin.icon+'</span>')+'</div>'+escHtml(latest.coin||'')+'</div>'
+    +(latest.prize?'<span style="font-size:13px;color:var(--gold);font-weight:600">🏅 '+escHtml(latest.prize)+'</span>':'')
+    +'<span style="font-size:11px;color:var(--muted2);margin-left:auto">'+timeAgo(latest.timestamp)+'</span>'
+    +'</div></div>';
+  historyList.innerHTML = winners.map(function(w,i){
+    var c2=getCoin(w.coin);
+    var medals=['🥇','🥈','🥉'];
+    var rankIcon=i<3?medals[i]:'#'+(i+1);
+    return '<div class="wh-card">'
+      +'<div class="wh-rank" style="background:'+c2.bg+';border:1px solid '+c2.border+';color:'+c2.color+'">'+rankIcon+'</div>'
+      +'<div style="flex:1;min-width:0"><div style="font-size:13px;font-weight:600">'+escHtml(w.campaignName)+'</div>'
+      +'<div class="wh-ticket">'+escHtml(w.ticketId)+'</div>'
+      +(w.walletAddress?'<div class="wh-wallet">'+escHtml(w.walletAddress.slice(0,28))+(w.walletAddress.length>28?'…':'')+'</div>':'')
+      +'</div>'
+      +'<div style="text-align:right;flex-shrink:0">'
+      +(w.prize?'<div style="font-size:12px;font-weight:600;color:var(--gold)">'+escHtml(w.prize)+'</div>':'')
+      +'<div style="font-size:10px;color:var(--muted2);margin-top:3px">'+timeAgo(w.timestamp)+'</div>'
+      +'</div></div>';
+  }).join('');
+}
+
+// ── SPECIAL / FEATURED CARD ──────────────────────────────────────────────────
+function renderSpecialCard() {
+  var section = $('special-section');
+  var body = $('special-card-body');
+  if(!section || !body) return;
+
+  var campaigns = _cache.campaigns || [];
+  var special = campaigns.find(function(c){ return c.isSpecial && c.status === 'active'; });
+
+  if(!special) {
+    section.style.display = 'none';
+    return;
+  }
+
+  section.style.display = '';
+  var coin = getCoin(special.coin);
+  var cr = coin.color;
+  var sold = special.soldTickets || 0;
+  var total = special.totalTickets || 1;
+  var left = Math.max(0, total - sold);
+  var isClosed = special.status !== 'active';
+  var isFull = sold >= total;
+  var usdRate = getUsdPrice(special.coin);
+  var usdVal = usdRate ? fmtUsd(special.price * usdRate) : '';
+
+  body.innerHTML =
+    '<div class="special-card-top">'
+    +'<div style="flex:1;min-width:0">'
+    +'<div class="special-card-title">'+escHtml(special.name)+'</div>'
+    +(special.desc
+      ? '<div style="font-size:12px;color:var(--muted2);margin-bottom:12px;line-height:1.5">'+escHtml(special.desc)+'</div>'
+      : '<div style="font-size:12px;color:var(--muted2);margin-bottom:12px;line-height:1.5">One winner takes the entire prize pool — limited tickets available.</div>')
+    +(special.prize ? '<div class="special-prize-big" style="color:'+cr+'">'+escHtml(special.prize)+' <span style="font-size:14px;color:var(--muted2);font-family:var(--font)">'+escHtml(special.coin)+'</span></div>' : '')
+    +'</div>'
+    +'<div style="display:flex;flex-direction:column;align-items:flex-end;gap:6px;flex-shrink:0">'
+    +'<div class="special-badge">👑 VIP Draw</div>'
+    +(coin.logo ? '<img src="'+coin.logo+'" style="width:32px;height:32px;border-radius:50%;opacity:0.7;margin-top:4px" onerror="this.style.display=\'none\'"/>' : '')
+    +'</div>'
+    +'</div>'
+    +'<div class="special-features">'
+    +'<div class="special-feat">🎯 '+total.toLocaleString()+' tickets only</div>'
+    +'<div class="special-feat">⛓ On-chain verified</div>'
+    +'<div class="special-feat">🔒 1 winner takes all</div>'
+    +(special.endDate ? '<div class="special-feat" id="special-countdown-feat">📅 '+countdownHtml(special.endDate, special.endTime)+'</div>' : '<div class="special-feat">📅 No expiry set</div>')
+    +'</div>'
+    +'<div class="special-buy-row">'
+    +'<div>'
+    +'<div style="font-size:9px;color:var(--muted);letter-spacing:1.5px;text-transform:uppercase;margin-bottom:3px">Per Ticket</div>'
+    +'<div style="font-family:var(--mono);font-size:22px;font-weight:700;color:'+cr+'">'+fmt(special.price, 6)+' <span style="font-size:12px;color:var(--muted2);font-family:var(--font)">'+escHtml(special.coin)+'</span></div>'
+    +(usdVal ? '<div style="font-size:10px;color:var(--muted2);margin-top:2px">≈ '+usdVal+' USD</div>' : '')
+    +'</div>'
+    +'<div style="display:flex;align-items:center;gap:10px">'
+    +'<div style="text-align:center">'
+    +'<div style="font-size:10px;color:var(--muted2);margin-bottom:3px">Tickets left</div>'
+    +'<div style="font-family:var(--mono);font-size:16px;font-weight:700;color:'+(left < total * 0.2 ? 'var(--red)' : 'var(--green)')+'">'+left.toLocaleString()+'</div>'
+    +'</div>'
+    +(isClosed || isFull
+      ? '<button class="special-buy-btn" disabled style="opacity:0.4;cursor:not-allowed">'+(isFull?'Sold Out':'Closed')+'</button>'
+      : '<button class="special-buy-btn" onclick="openBuySheet(\''+special.id+'\')">🎟 Buy Now</button>')
+    +'</div>'
+    +'</div>';
+}
+
+// ── QTY ───────────────────────────────────────────────────────────────────────
+function changeQty(campId, inc) {
+  var el = $('qty-'+campId);
+  if(!el) return;
+  // Find the campaign so we can clamp to remaining stock
+  var db = getDB();
+  var camp = (db.campaigns||[]).find(function(c){ return c.id===campId; });
+  var remaining = 10;
+  if (camp) {
+    var stockLeft = Math.max(0, (camp.totalTickets||0) - (camp.soldTickets||0));
+    remaining = Math.min(10, stockLeft);
+    if (remaining < 1) remaining = 1; // never let it go below 1 visually
+  }
+  var v = parseInt(el.textContent)||1;
+  v = inc ? Math.min(v+1, remaining) : Math.max(1, v-1);
+  el.textContent = v;
+  if (inc && parseInt(el.textContent) === remaining && camp) {
+    var stockLeft2 = Math.max(0, (camp.totalTickets||0) - (camp.soldTickets||0));
+    if (remaining === stockLeft2 && stockLeft2 < 10) {
+      showToast('Only ' + stockLeft2 + ' ticket(s) remaining for this campaign','info');
+    }
+  }
+}
+
+// ── BUY SHEET ─────────────────────────────────────────────────────────────────
+function openBuySheet(campId) {
+  var db = getDB();
+  var camp = (db.campaigns||[]).find(function(c){ return c.id===campId; });
+  if(!camp) return;
+  // Defensive: if campaign closed/sold-out at click time, refuse
+  if (camp.status !== 'active') { showToast('This campaign is no longer active','err'); return; }
+  var stockLeft = Math.max(0, (camp.totalTickets||0) - (camp.soldTickets||0));
+  if (stockLeft <= 0) { showToast('Sold out','err'); return; }
+  var qtyEl = $('qty-'+campId);
+  var qty = qtyEl ? parseInt(qtyEl.textContent)||1 : 1;
+  // Clamp qty to actual remaining stock
+  if (qty > stockLeft) {
+    qty = stockLeft;
+    if (qtyEl) qtyEl.textContent = qty;
+    showToast('Adjusted to ' + qty + ' — that\'s all that\'s left','info');
+  }
+  state.buyingCampaign = camp;
+  state.buyQty = qty;
+  state.payStep = 1;
+  state.payMethod = null;
+  state.wallet = '';
+  state.buyerName = '';
+  state.mobile = '';
+  state.lastTicketId = null;
+  state.finalPaymentStatus = null;
+  // Detach any leftover listener from a previous purchase
+  if(state.currentTicketRef) {
+    try { state.currentTicketRef.off(); } catch(e) {}
+    state.currentTicketRef = null;
+  }
+  clearPollInterval();
+  $('sheet-ttl').textContent = 'Buy Tickets — '+camp.name;
+  $('buy-overlay').classList.add('open');
+  renderSheet();
+}
+
+function closeSheet() {
+  $('buy-overlay').classList.remove('open');
+  clearPollInterval();
+  // Detach the Firebase status listener if one is attached
+  if(state.currentTicketRef) {
+    try { state.currentTicketRef.off(); } catch(e) {}
+    state.currentTicketRef = null;
+  }
+  state.buyingCampaign = null;
+  state.payStep = 1;
+  state.payMethod = null;
+  state.lastTicketId = null;
+  state.currentTicketRef = null;
+  state.finalPaymentStatus = null;
+}
+
+function clearPollInterval() {
+  if(state.pollInterval) { clearInterval(state.pollInterval); state.pollInterval=null; }
+}
+
+// ── RENDER SHEET ──────────────────────────────────────────────────────────────
+function renderSheet() {
+  var camp = state.buyingCampaign;
+  if(!camp) return;
+  var coin = getCoin(camp.coin);
+  var qty = state.buyQty;
+  var total = camp.price * qty;
+  var body = $('sheet-body');
+
+  // Step bar (3 steps: Info → Pay → Done)
+  var steps = '<div class="pay-step-bar">'
+    +'<div class="pay-step '+(state.payStep>=1?'done':'')+'"></div>'
+    +'<div class="pay-step '+(state.payStep>=2?'done':state.payStep===2?'active':'')+'"></div>'
+    +'<div class="pay-step '+(state.payStep>=3?'done':'')+'"></div>'
+    +'</div>';
+
+  var summary = '<div class="pay-summary">'
+    +'<div class="pay-row"><span class="lbl">Campaign</span><span style="font-size:12px;font-weight:600">'+escHtml(camp.name)+'</span></div>'
+    +'<div class="pay-row"><span class="lbl">Tickets</span><span class="val">×'+qty+'</span></div>'
+    +'<div class="pay-row"><span class="lbl">Unit Price</span><span class="val" style="color:'+coin.color+'">'+(fmt(camp.price,6))+' '+camp.coin+'</span></div>'
+    +'<div class="pay-row"><span class="lbl">Total</span><span class="val" style="color:'+coin.color+';font-size:16px">'+(fmt(total,6))+' '+camp.coin+'</span></div>'
+    +'</div>';
+
+  // ── STEP 1: Info collection ────────────────────────────────────────────────
+  if(state.payStep === 1) {
+    body.innerHTML = steps + summary
+      +'<div class="tx-form-group">'
+      +'<label class="tx-label">Your Full Name</label>'
+      +'<input class="tx-input" id="buyer-name-inp" placeholder="e.g. Ahmed Al-Mansouri" value="'+escHtml(state.buyerName||'')+'"/>'
+      +'</div>'
+      +'<div class="tx-form-group">'
+      +'<label class="tx-label">Your '+camp.coin+' Wallet Address <span style="color:var(--red)">*</span></label>'
+      +'<input class="tx-input" id="wallet-inp" placeholder="Enter your '+camp.coin+' wallet address" value="'+escHtml(state.wallet||'')+'"/>'
+      +'<div style="font-size:11px;color:var(--muted2);margin-top:5px">⚠️ Prize will be sent here if you win — verify carefully</div>'
+      +'</div>'
+      +'<div class="tx-form-group">'
+      +'<label class="tx-label">Mobile Number <span style="color:var(--red)">*</span></label>'
+      +'<input class="tx-input" id="mobile-inp" type="tel" placeholder="e.g. +971 50 123 4567" value="'+escHtml(state.mobile||'')+'"/>'
+      +'<div style="font-size:11px;color:var(--muted2);margin-top:5px">📞 We\'ll contact you here if you win</div>'
+      +'</div>'
+      +'<button class="pay-action-btn primary" onclick="goStep2()">Continue to Payment →</button>';
+  }
+
+  // ── STEP 2: Manual payment — coin locked to campaign coin ─────────────────
+  else if(state.payStep === 2) {
+    var addr = getWalletAddr(camp.coin) || 'WALLET_NOT_CONFIGURED';
+    var qrUrl = 'https://api.qrserver.com/v1/create-qr-code/?size=140x140&color=ffffff&bgcolor=0f1219&data='+encodeURIComponent(addr);
+    body.innerHTML = steps + summary
+      +'<div style="background:var(--card);border:1px solid var(--border);border-radius:12px;padding:16px;margin-bottom:14px">'
+      +'<div style="display:flex;align-items:center;gap:10px;margin-bottom:14px">'
+      +(coin.logo ? '<img src="'+coin.logo+'" style="width:28px;height:28px;border-radius:50%;flex-shrink:0" onerror="this.style.display=\'none\'"/>' : '')
+      +'<div>'
+      +'<div style="font-size:10px;color:var(--muted2);letter-spacing:2px;text-transform:uppercase;font-weight:600">Pay with</div>'
+      +'<div style="font-family:var(--mono);font-size:16px;font-weight:700;color:'+coin.color+'">'+camp.coin+' only</div>'
+      +'</div></div>'
+      +'<div style="font-size:10px;color:var(--muted2);letter-spacing:2px;text-transform:uppercase;margin-bottom:6px;font-weight:600">Send Exactly</div>'
+      +'<div style="font-family:var(--mono);font-size:22px;font-weight:700;color:'+coin.color+';margin-bottom:14px">'+(fmt(total,6))+' '+camp.coin+'</div>'
+      +(function(){
+         var net = getWalletNetwork(camp.coin);
+         return '<div style="background:rgba(249,115,22,0.08);border:1px solid rgba(249,115,22,0.28);border-radius:10px;padding:11px 14px;margin-bottom:14px;display:flex;align-items:flex-start;gap:10px">'
+           +'<span style="font-size:18px;flex-shrink:0;line-height:1">⚠️</span>'
+           +'<div style="flex:1;min-width:0">'
+           +'<div style="font-size:11px;color:var(--orange);font-weight:700;letter-spacing:.5px;margin-bottom:3px">'+escHtml(net)+' ONLY</div>'
+           +'<div style="font-size:11px;color:var(--muted2);line-height:1.5">Send <strong style="color:var(--text)">'+escHtml(camp.coin)+'</strong> on the <strong style="color:var(--text)">'+escHtml(net)+'</strong>. Sending the wrong coin or wrong network will <strong style="color:var(--red)">permanently lose your funds</strong>.</div>'
+           +'</div></div>';
+       })()
+      +'<div style="font-size:10px;color:var(--muted2);letter-spacing:2px;text-transform:uppercase;margin-bottom:8px;font-weight:600">To This Address</div>'
+      +'<div style="display:flex;gap:14px;align-items:flex-start;flex-wrap:wrap">'
+      +'<div style="background:#0f1219;border:2px solid '+coin.color+'44;border-radius:10px;padding:6px;flex-shrink:0">'
+      +'<img src="'+qrUrl+'" width="110" height="110" style="display:block;border-radius:5px" onerror="this.parentElement.style.display=\'none\'"/>'
+      +'</div>'
+      +'<div style="flex:1;min-width:0">'
+      +'<div class="deposit-addr" onclick="copyAddr(this)">'+escHtml(addr)+'<br><span style="font-size:9px;color:var(--muted2);margin-top:4px;display:block">📋 Tap to copy</span></div>'
+      +'</div></div></div>'
+      +'<div class="tx-form-group">'
+      +'<label class="tx-label">Transaction Hash (TX ID) <span style="color:var(--red)">*</span></label>'
+      +'<input class="tx-input" id="tx-hash-inp" placeholder="Paste your '+camp.coin+' TX hash here" value="'+escHtml(state.txHash||'')+'"/>'
+      +'<div style="font-size:11px;color:var(--muted2);margin-top:5px">Find your TX hash in your wallet app or block explorer after sending</div>'
+      +'</div>'
+      +'<div class="info-box warning">⚠️ Your payment will be <strong>manually verified</strong> by the admin team within 24 hours.</div>'
+      +'<button class="pay-action-btn primary" onclick="submitManualPayment()">Submit Payment for Review →</button>';
+  }
+
+  // ── STEP 3: Two states — PENDING (no ticket shown) vs PAID (full ticket) ──
+  else if(state.payStep === 3) {
+    var isPaid     = state.finalPaymentStatus === 'paid';
+    var isRejected = state.finalPaymentStatus === 'rejected';
+
+    // ── PENDING / REJECTED: Hide ticket details — admin has NOT yet verified ──
+    if(!isPaid) {
+      var shortWallet = (state.wallet||'');
+      if(shortWallet.length > 18) shortWallet = shortWallet.slice(0,10)+'…'+shortWallet.slice(-6);
+      var shortTx = (state.txHash||'');
+      if(shortTx.length > 18) shortTx = shortTx.slice(0,10)+'…'+shortTx.slice(-6);
+
+      body.innerHTML = steps + summary
+        +'<div style="text-align:center;padding:8px 0 16px">'
+        +(isRejected
+          ? '<div class="pay-icon-wrap" style="background:rgba(244,63,94,0.1);border:2px solid rgba(244,63,94,0.3);font-size:24px">❌</div>'
+            +'<h3 style="font-size:18px;font-weight:700;color:var(--red);margin-bottom:4px">Payment Rejected</h3>'
+            +'<p style="font-size:13px;color:var(--muted2)">The admin team could not verify your transaction.</p>'
+          : '<div class="pay-icon-wrap" style="background:rgba(249,115,22,0.1);border:2px solid rgba(249,115,22,0.3);font-size:24px">⏳</div>'
+            +'<h3 style="font-size:18px;font-weight:700;color:var(--orange);margin-bottom:4px">Payment Under Review</h3>'
+            +'<p style="font-size:13px;color:var(--muted2)">Your transaction has been submitted to the admin team.</p>'
+         )
+        +'</div>'
+        +'<div class="info-box warning" style="margin-bottom:14px">'
+        +(isRejected
+          ? '❌ Your payment could not be verified. No ticket has been issued. Please contact support at <a href="mailto:ticketchainadmin@gmail.com" style="color:var(--accent)">ticketchainadmin@gmail.com</a> if you believe this is a mistake.'
+          : '⏳ Your <strong>ticket will be issued only after</strong> the admin verifies your TX hash on-chain (within 24h). Once verified, your ticket ID and QR code will appear here automatically. You can safely close this window — your wallet is on file. Questions? Email <a href="mailto:ticketchainadmin@gmail.com" style="color:var(--accent)">ticketchainadmin@gmail.com</a>'
+         )
+        +'</div>'
+        +'<div style="background:var(--card);border:1px solid var(--border);border-radius:12px;padding:14px;margin-bottom:14px">'
+        +'<div style="font-size:10px;color:var(--muted2);letter-spacing:2px;text-transform:uppercase;margin-bottom:10px;font-weight:600">Submitted Details</div>'
+        +'<div class="pay-row"><span class="lbl">Buyer</span><span class="val">'+escHtml(state.buyerName||'—')+'</span></div>'
+        +'<div class="pay-row"><span class="lbl">Mobile</span><span class="val">'+escHtml(state.mobile||'—')+'</span></div>'
+        +'<div class="pay-row"><span class="lbl">Wallet</span><span class="val" style="font-family:var(--mono);font-size:11px">'+escHtml(shortWallet||'—')+'</span></div>'
+        +'<div class="pay-row"><span class="lbl">TX Hash</span><span class="val" style="font-family:var(--mono);font-size:11px">'+escHtml(shortTx||'—')+'</span></div>'
+        +'<div class="pay-row"><span class="lbl">Status</span><span class="val">'
+        +(isRejected
+          ? '<span class="pill-pending" style="background:rgba(244,63,94,0.12);color:var(--red);border-color:rgba(244,63,94,0.25)">✗ REJECTED</span>'
+          : '<span class="pill-pending">⏳ AWAITING VERIFICATION</span>'
+         )
+        +'</span></div>'
+        +'</div>'
+        +'<button class="pay-action-btn" style="background:rgba(255,255,255,0.04);border:1px solid var(--border);color:var(--muted2)" onclick="closeSheet()">Close</button>';
+      return;
+    }
+
+    // ── PAID: Admin verified — NOW reveal the real ticket ──
+    var ticketId = state.lastTicketId;
+    var qrUrl = 'https://api.qrserver.com/v1/create-qr-code/?size=160x160&color=ffffff&bgcolor=0f1219&data='+encodeURIComponent(ticketId||'');
+    body.innerHTML = steps
+      +'<div style="text-align:center;padding:8px 0 16px">'
+      +'<div class="pay-icon-wrap" style="background:rgba(16,185,129,0.1);border:2px solid rgba(16,185,129,0.3);font-size:24px">🎉</div>'
+      +'<h3 style="font-size:18px;font-weight:700;color:var(--green);margin-bottom:4px">You\'re In the Draw!</h3>'
+      +'<p style="font-size:13px;color:var(--muted2)">Payment verified — your ticket is confirmed.</p>'
+      +'</div>'
+      +'<div class="ticket-display" id="ticket-card-dl">'
+      +'<div class="ticket-id-lbl">🎫 Your Ticket ID</div>'
+      +'<div class="ticket-id" id="dl-ticket-id">'+escHtml(ticketId||'')+'</div>'
+      +(state.buyerName?'<div class="ticket-info-row" style="justify-content:center;margin-bottom:6px"><span style="color:var(--text);font-weight:600">👤 '+escHtml(state.buyerName)+'</span></div>':'')
+      +'<div class="ticket-info-row"><span>Campaign: <b>'+escHtml(camp.name)+'</b></span></div>'
+      +'<div class="ticket-info-row" style="margin-top:4px"><span>Qty: <b>'+qty+' ticket'+(qty>1?'s':'')+ '</b></span><span>Coin: <b>'+escHtml(camp.coin)+'</b></span></div>'
+      +'<div style="text-align:center;margin-top:10px"><span class="pill-paid">✓ PAID — Verified</span></div>'
+      +'<div style="text-align:center;margin-top:14px">'
+      +'<img id="ticket-qr-img" src="'+qrUrl+'" width="120" height="120" style="border-radius:8px;border:2px solid rgba(255,255,255,0.1)" onerror="this.style.display=\'none\'"/>'
+      +'<div style="font-size:9px;color:var(--muted);margin-top:6px">Scan to verify ticket</div>'
+      +'</div></div>'
+      +'<div class="info-box success">✅ Payment fully confirmed! Good luck in the draw. Any questions? <a href="mailto:ticketchainadmin@gmail.com" style="color:var(--green)">ticketchainadmin@gmail.com</a></div>'
+      +'<div style="display:flex;gap:8px;margin-bottom:10px">'
+      +'<button class="pay-action-btn primary" style="flex:1;background:linear-gradient(135deg,#10b981,#059669);color:#fff;display:flex;align-items:center;justify-content:center;gap:8px" onclick="downloadTicket()">'
+      +'<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>'
+      +' Download Ticket'
+      +'</button>'
+      +'<button class="pay-action-btn" style="flex:0 0 auto;padding:14px 18px;background:rgba(0,229,255,0.1);border:1px solid rgba(0,229,255,0.3);color:var(--accent);display:flex;align-items:center;justify-content:center;gap:6px" onclick="copyTicketId()" title="Copy ticket ID">'
+      +'<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>'
+      +' Copy ID'
+      +'</button>'
+      +'</div>'
+      +'<button class="pay-action-btn" style="background:rgba(255,255,255,0.04);border:1px solid var(--border);color:var(--muted2)" onclick="closeSheet()">Close — View All Campaigns</button>';
+    launchConfetti();
+  }
+}
+
+// ── STEP NAVIGATION ────────────────────────────────────────────────────────────
+// Step 1 → Step 2: validate name+wallet, create ticket in Firebase, show payment screen
+function goStep2() {
+  var nameInp = $('buyer-name-inp');
+  var wi = $('wallet-inp');
+  var mobileInp = $('mobile-inp');
+  var name = nameInp ? nameInp.value.trim() : '';
+  var wallet = wi ? wi.value.trim() : '';
+  var mobile = mobileInp ? mobileInp.value.trim() : '';
+  if(!name) { showToast('Please enter your full name','err'); return; }
+  if(!wallet) { showToast('Please enter your '+state.buyingCampaign.coin+' wallet address','err'); return; }
+  if(!mobile) { showToast('Please enter your mobile number','err'); return; }
+  // Enforce T&C agreement before allowing payment
+  if(!_tcAgreed) {
+    showToast('⚠️ Please agree to the Terms & Conditions on the home page before purchasing','err');
+    return;
+  }
+  // Re-check live stock right before payment — campaign may have sold more since open
+  var camp = state.buyingCampaign;
+  var freshCamp = (getDB().campaigns||[]).find(function(c){ return c.id===camp.id; }) || camp;
+  if (freshCamp.status !== 'active') {
+    showToast('This campaign is no longer active','err'); return;
+  }
+  var stockLeft = Math.max(0, (freshCamp.totalTickets||0) - (freshCamp.soldTickets||0));
+  if (stockLeft < state.buyQty) {
+    showToast('Only ' + stockLeft + ' ticket(s) remaining — please reduce your quantity','err');
+    return;
+  }
+  // Only save to state — no Firebase write yet, no ticket created yet
+  state.buyerName = name;
+  state.wallet = wallet;
+  state.mobile = mobile;
+  state.payMethod = 'manual';
+  state.txHash = '';
+  state.payStep = 2;
+  renderSheet();
+}
+
+// ── MANUAL PAYMENT — ticket created in Firebase ONLY when buyer submits TX hash ─
+function submitManualPayment() {
+  var txHashInp = $('tx-hash-inp');
+  var txHash = txHashInp ? txHashInp.value.trim() : '';
+
+  if(!txHash) { showToast('Please enter your transaction hash','err'); return; }
+  if(txHash.length < 10) { showToast('Transaction hash looks too short — double check it','err'); return; }
+
+  // Check for duplicate TX hash already submitted (prevents accidental + intentional re-use)
+  var dup = _cache.tickets.find(function(t){
+    return t.txHash && t.txHash.toLowerCase() === txHash.toLowerCase()
+        && t.paymentStatus !== 'rejected' && t.paymentStatus !== 'failed';
+  });
+  if (dup) {
+    showToast('⚠️ This transaction hash has already been submitted. If this is your previous purchase, check your existing ticket.','err');
+    return;
+  }
+
+  state.txHash = txHash;
+  var camp = state.buyingCampaign;
+  var qty = state.buyQty;
+
+  // Final stock re-check at the very moment the buyer commits a TX
+  var freshCamp = (getDB().campaigns||[]).find(function(c){ return c.id===camp.id; }) || camp;
+  var stockLeft = Math.max(0, (freshCamp.totalTickets||0) - (freshCamp.soldTickets||0));
+  if (stockLeft < qty) {
+    showToast('Only ' + stockLeft + ' ticket(s) remaining now — your purchase cannot be saved. Please reduce qty.','err');
+    return;
+  }
+
+  // Generate ticket ID now — only after buyer submits proof of payment
+  var ticketId = genTicketId();
+  state.lastTicketId = ticketId;
+
+  var ticketObj = {
+    id: ticketId,
+    campaignId: camp.id,
+    campaignName: camp.name,
+    coin: camp.coin,
+    qty: qty,
+    totalPaid: camp.price * qty,
+    walletAddress: state.wallet,
+    buyerName: state.buyerName,
+    mobile: state.mobile,
+    purchaseTime: Date.now(),
+    paymentStatus: 'pending',
+    paymentMethod: 'manual',
+    txHash: txHash,
+    coinType: camp.coin,
+    txSubmittedAt: Date.now()
+  };
+
+  function onSaved() {
+    state.finalPaymentStatus = 'pending';
+    state.payStep = 3;
+    renderSheet();
+    // ⚠️ NO confetti here — payment is NOT yet verified by admin.
+    showToast('⏳ TX submitted — awaiting admin verification.','ok');
+    // Listen for admin to flip paymentStatus → 'paid' (or 'rejected')
+    attachTicketStatusListener(ticketId);
+  }
+
+  if(!_firebaseOk || !db_ref) {
+    onSaved();
+    return;
+  }
+  dbRef('tickets/'+ticketId).set(ticketObj)
+    .then(onSaved)
+    .catch(function(e) { showToast('Failed to save. Check connection.','err'); console.error(e); });
+}
+
+// ── LISTEN FOR ADMIN VERIFICATION ─────────────────────────────────────────────
+// Watches the ticket in Firebase. When admin sets paymentStatus to 'paid',
+// the customer's Step 3 screen automatically reveals the real ticket.
+function attachTicketStatusListener(ticketId) {
+  if(!_firebaseOk || !db_ref || !ticketId) return;
+  // Detach any previous listener first
+  if(state.currentTicketRef) {
+    try { state.currentTicketRef.off(); } catch(e) {}
+    state.currentTicketRef = null;
+  }
+  var ref = dbRef('tickets/'+ticketId);
+  state.currentTicketRef = ref;
+  ref.on('value', function(snap) {
+    var t = snap.val();
+    if(!t) return;
+    // Only react if the buyer is still on this ticket's flow
+    if(state.lastTicketId !== ticketId || state.payStep !== 3) return;
+    if(t.paymentStatus === 'paid' && state.finalPaymentStatus !== 'paid') {
+      state.finalPaymentStatus = 'paid';
+      renderSheet();
+      showToast('✅ Payment verified! Your ticket is confirmed.','ok');
+    } else if((t.paymentStatus === 'rejected' || t.paymentStatus === 'failed') && state.finalPaymentStatus !== 'rejected') {
+      state.finalPaymentStatus = 'rejected';
+      renderSheet();
+      showToast('❌ Payment was rejected by admin.','err');
+    }
+  });
+}
+
+// ── DOWNLOAD TICKET ───────────────────────────────────────────────────────────
+function downloadTicket() {
+  // SAFETY: Never allow download until admin has verified the payment
+  if(state.finalPaymentStatus !== 'paid') {
+    showToast('⏳ Ticket will be available once admin verifies your payment.','err');
+    return;
+  }
+  var camp = state.buyingCampaign;
+  var ticketId = state.lastTicketId || '';
+  var coin = getCoin(camp ? camp.coin : '');
+  var qty = state.buyQty || 1;
+  var name = state.buyerName || '';
+
+  // Build a canvas ticket
+  var canvas = document.createElement('canvas');
+  canvas.width = 720;
+  canvas.height = 360;
+  var ctx = canvas.getContext('2d');
+
+  // Background
+  ctx.fillStyle = '#0f1219';
+  ctx.fillRect(0, 0, 720, 360);
+
+  // Left accent stripe
+  ctx.fillStyle = coin.color || '#00e5ff';
+  ctx.fillRect(0, 0, 8, 360);
+
+  // Title
+  ctx.font = 'bold 28px monospace';
+  ctx.fillStyle = coin.color || '#00e5ff';
+  ctx.fillText('🎫 TicketChain', 36, 52);
+
+  // Campaign name
+  ctx.font = '16px sans-serif';
+  ctx.fillStyle = '#e0e4f0';
+  var campName = camp ? camp.name : '';
+  if(campName.length > 48) campName = campName.slice(0,45)+'...';
+  ctx.fillText(campName, 36, 84);
+
+  // Divider
+  ctx.strokeStyle = 'rgba(255,255,255,0.08)';
+  ctx.lineWidth = 1;
+  ctx.beginPath(); ctx.moveTo(36, 100); ctx.lineTo(684, 100); ctx.stroke();
+
+  // Ticket ID label
+  ctx.font = '11px monospace';
+  ctx.fillStyle = '#6b7280';
+  ctx.fillText('TICKET ID', 36, 128);
+
+  // Ticket ID value
+  ctx.font = 'bold 22px monospace';
+  ctx.fillStyle = '#ffffff';
+  ctx.fillText(ticketId, 36, 158);
+
+  // Fields row
+  ctx.font = '11px monospace';
+  ctx.fillStyle = '#6b7280';
+  ctx.fillText('BUYER', 36, 196);
+  ctx.fillText('QTY', 320, 196);
+  ctx.fillText('COIN', 480, 196);
+  ctx.fillText('STATUS', 600, 196);
+
+  ctx.font = '14px monospace';
+  ctx.fillStyle = '#e0e4f0';
+  ctx.fillText(name || '—', 36, 218);
+  ctx.fillText(String(qty), 320, 218);
+  ctx.fillStyle = coin.color || '#00e5ff';
+  ctx.fillText(camp ? camp.coin : '—', 480, 218);
+  ctx.fillStyle = '#10b981';
+  ctx.fillText('PAID', 600, 218);
+
+  // Divider
+  ctx.strokeStyle = 'rgba(255,255,255,0.08)';
+  ctx.beginPath(); ctx.moveTo(36, 238); ctx.lineTo(684, 238); ctx.stroke();
+
+  // Footer
+  ctx.font = '11px monospace';
+  ctx.fillStyle = '#374151';
+  ctx.fillText('Keep this ticket as proof of entry. Payment verified by admin.', 36, 264);
+  ctx.fillText('Generated: ' + new Date().toUTCString(), 36, 284);
+
+  // Dashed ticket edge
+  ctx.setLineDash([6, 4]);
+  ctx.strokeStyle = 'rgba(255,255,255,0.06)';
+  ctx.lineWidth = 1;
+  ctx.strokeRect(20, 20, 680, 320);
+
+  // Download
+  var link = document.createElement('a');
+  link.download = 'ticket-' + ticketId + '.png';
+  link.href = canvas.toDataURL('image/png');
+  link.click();
+  showToast('🎫 Ticket downloaded!', 'ok');
+}
+
+// ── COPY TICKET ID ────────────────────────────────────────────────────────────
+function copyTicketId() {
+  var ticketId = state.lastTicketId || '';
+  if(!ticketId) { showToast('No ticket ID to copy','err'); return; }
+  try { navigator.clipboard.writeText(ticketId); }
+  catch(e) {
+    // Fallback for older browsers
+    var ta = document.createElement('textarea');
+    ta.value = ticketId; document.body.appendChild(ta);
+    ta.select(); try { document.execCommand('copy'); } catch(e2) {}
+    document.body.removeChild(ta);
+  }
+  showToast('🎫 Ticket ID copied: '+ticketId,'ok');
+}
+
+// ── COPY ADDRESS ──────────────────────────────────────────────────────────────
+function copyAddr(el) {
+  try { navigator.clipboard.writeText(el.textContent.replace(/📋.*$/,'').trim()); }
+  catch(e) {}
+  showToast('📋 Address copied!');
+}
+
+// ── CONFETTI ─────────────────────────────────────────────────────────────────
+function launchConfetti(){
+  var colors=['#00e5ff','#7c3aed','#fbbf24','#10b981','#f43f5e'];
+  for(var i=0;i<55;i++){
+    (function(i){
+      setTimeout(function(){
+        var el=document.createElement('div');
+        el.className='confetti-piece';
+        el.style.cssText='left:'+Math.random()*100+'vw;top:-20px;background:'+colors[Math.floor(Math.random()*colors.length)]+';width:'+(4+Math.random()*8)+'px;height:'+(4+Math.random()*8)+'px;animation-duration:'+(2+Math.random()*2)+'s;animation-delay:'+Math.random()*0.4+'s;border-radius:'+(Math.random()>0.5?'50%':'2px');
+        document.body.appendChild(el);
+        setTimeout(function(){el.remove();},4200);
+      },i*28);
+    })(i);
+  }
+}
+
+// ── TOAST ─────────────────────────────────────────────────────────────────────
+function showToast(msg, type){
+  var t=$('toast');
+  t.textContent=msg;
+  t.className='toast show'+(type?' '+type:'');
+  setTimeout(function(){t.classList.remove('show');},3000);
+}
+
+// ── FILTERS ───────────────────────────────────────────────────────────────────
+document.querySelectorAll('.filter-btn').forEach(function(btn){
+  btn.addEventListener('click',function(){
+    document.querySelectorAll('.filter-btn').forEach(function(b){b.classList.remove('on');});
+    btn.classList.add('on');
+    state.filter=btn.dataset.filter;
+    renderAll();
+  });
+});
+
+// ── SHEET EVENTS ─────────────────────────────────────────────────────────────
+$('sheet-close').addEventListener('click', closeSheet);
+$('buy-overlay').addEventListener('click', function(e){ if(e.target===this) closeSheet(); });
+document.addEventListener('keydown', function(e){ if(e.key==='Escape') closeSheet(); });
+
+// ── COUNTDOWN TICKING ────────────────────────────────────────────────────────
+setInterval(function(){
+  var db=getDB();
+  (db.campaigns||[]).forEach(function(c){
+    if(c.status==='active'&&c.endDate){
+      var cdEl=$('cd-'+c.id);
+      if(cdEl) cdEl.innerHTML='<span class="countdown-label">Ends in</span>'+countdownHtml(c.endDate,c.endTime);
+    }
+  });
+},1000);
+
+// ── LIVE CRYPTO TICKER (CoinGecko API) ───────────────────────────────────────
+var TICKER_COINS = [
+  { id:'bitcoin',        sym:'BTC',  logo:'https://assets.coingecko.com/coins/images/1/small/bitcoin.png' },
+  { id:'ethereum',       sym:'ETH',  logo:'https://assets.coingecko.com/coins/images/279/small/ethereum.png' },
+  { id:'solana',         sym:'SOL',  logo:'https://assets.coingecko.com/coins/images/4128/small/solana.png' },
+  { id:'ripple',         sym:'XRP',  logo:'https://assets.coingecko.com/coins/images/44/small/xrp-symbol-white-128.png' },
+  { id:'tether',         sym:'USDT', logo:'https://assets.coingecko.com/coins/images/325/small/Tether.png' },
+  { id:'usd-coin',       sym:'USDC', logo:'https://assets.coingecko.com/coins/images/6319/small/USD_Coin_icon.png' },
+  { id:'binancecoin',    sym:'BNB',  logo:'https://assets.coingecko.com/coins/images/825/small/bnb-icon2_2x.png' },
+  { id:'cardano',        sym:'ADA',  logo:'https://assets.coingecko.com/coins/images/975/small/cardano.png' },
+  { id:'tron',           sym:'TRX',  logo:'https://assets.coingecko.com/coins/images/1094/small/tron-logo.png' },
+  { id:'the-open-network',sym:'TON', logo:'https://assets.coingecko.com/coins/images/17980/small/ton_symbol.png' },
+  { id:'litecoin',       sym:'LTC',  logo:'https://assets.coingecko.com/coins/images/2/small/litecoin.png' },
+  { id:'chainlink',      sym:'LINK', logo:'https://assets.coingecko.com/coins/images/877/small/chainlink-new-logo.png' },
+  { id:'stellar',        sym:'XLM',  logo:'https://assets.coingecko.com/coins/images/100/small/Stellar_symbol_black_RGB.png' },
+  { id:'dogecoin',       sym:'DOGE', logo:'https://assets.coingecko.com/coins/images/5/small/dogecoin.png' },
+  { id:'shiba-inu',      sym:'SHIB', logo:'https://assets.coingecko.com/coins/images/11939/small/shiba.png' },
+  { id:'pepe',           sym:'PEPE', logo:'https://assets.coingecko.com/coins/images/29850/small/pepe-token.jpeg' },
+  { id:'floki',          sym:'FLOKI',logo:'https://assets.coingecko.com/coins/images/16746/small/PNG_image.png' },
+  { id:'dogwifcoin',     sym:'WIF',  logo:'https://assets.coingecko.com/coins/images/33566/small/dogwifhat.jpg' },
+  { id:'bonk',           sym:'BONK', logo:'https://assets.coingecko.com/coins/images/28600/small/bonk.jpg' }
+];
+
+// Live USD prices cache — updated every 60s from CoinGecko
+var _livePrices = {}; // { BTC: 65000, ETH: 3200, ... }
+
+function getUsdPrice(sym) { return _livePrices[sym] || 0; }
+function fmtUsd(n) {
+  if(!n) return '';
+  if(n >= 1000) return '$' + n.toLocaleString('en-US', {maximumFractionDigits:0});
+  if(n >= 1)    return '$' + n.toLocaleString('en-US', {maximumFractionDigits:2});
+  if(n >= 0.01) return '$' + n.toFixed(4);
+  return '$' + n.toFixed(6);
+}
+
+function formatPrice(p) {
+  if(p >= 1000) return '$' + p.toLocaleString('en-US', {maximumFractionDigits:0});
+  if(p >= 1)    return '$' + p.toLocaleString('en-US', {maximumFractionDigits:2});
+  return '$' + p.toFixed(4);
+}
+
+function buildTickerItem(coin, price, change) {
+  var cls = 'ticker-up', arrow = '↑';
+  if(change < 0) { cls='ticker-dn'; arrow='↓'; }
+  if(coin.sym === 'USDT' || Math.abs(change) < 0.05) {
+    cls = ''; arrow = '';
+    return '<span class="ticker-item"><img class="ticker-logo" src="'+coin.logo+'" alt="'+coin.sym+'" onerror="this.style.display=\'none\'"/>'+coin.sym+' <b style="color:var(--muted2)">'+formatPrice(price)+' stable</b></span>';
+  }
+  return '<span class="ticker-item"><img class="ticker-logo" src="'+coin.logo+'" alt="'+coin.sym+'" onerror="this.style.display=\'none\'"/>'+coin.sym+' <b class="'+cls+'">'+formatPrice(price)+' '+arrow+Math.abs(change).toFixed(1)+'%</b></span>';
+}
+
+function fetchLivePrices() {
+  var ids = TICKER_COINS.map(function(c){return c.id;}).join(',');
+  var url = 'https://api.coingecko.com/api/v3/simple/price?ids='+ids+'&vs_currencies=usd&include_24hr_change=true';
+  fetch(url)
+    .then(function(r){ if(!r.ok) throw new Error('HTTP '+r.status); return r.json(); })
+    .then(function(data) {
+      var items = TICKER_COINS.map(function(c){
+        var d = data[c.id];
+        if(!d) return '';
+        // Cache live price
+        _livePrices[c.sym] = d.usd;
+        return buildTickerItem(c, d.usd, d.usd_24h_change || 0);
+      }).filter(Boolean).join('');
+      // duplicate so the marquee loops seamlessly
+      var inner = $('ticker-inner');
+      if(inner && items) inner.innerHTML = items + items;
+      // Re-render cards so USD values update
+      if(_fbReady) renderAll();
+    })
+    .catch(function(err){
+      console.warn('Price fetch failed:', err);
+      var inner = $('ticker-inner');
+      // on first failure, show fallback so it isn't blank
+      if(inner && inner.innerHTML.indexOf('Loading') !== -1) {
+        var fallback = TICKER_COINS.map(function(c){
+          return '<span class="ticker-item"><img class="ticker-logo" src="'+c.logo+'" alt="'+c.sym+'" onerror="this.style.display=\'none\'"/>'+c.sym+' <b style="color:var(--muted2)">live feed offline</b></span>';
+        }).join('');
+        inner.innerHTML = fallback + fallback;
+      }
+    });
+}
+
+// Fetch immediately, then refresh every 60 seconds
+fetchLivePrices();
+setInterval(fetchLivePrices, 60000);
+
+// ── TERMS & CONDITIONS ───────────────────────────────────────────────────────
+var _tcAgreed = false;
+function toggleTC() {
+  var body = $('tc-body');
+  var chevron = $('tc-chevron');
+  var header = $('tc-header');
+  if(!body) return;
+  var isOpen = body.classList.contains('open');
+  body.classList.toggle('open', !isOpen);
+  chevron.classList.toggle('open', !isOpen);
+  header.classList.toggle('open', !isOpen);
+}
+function toggleTCAgree() {
+  var cb = $('tc-checkbox');
+  if(!cb) return;
+  var checked = cb.classList.toggle('checked');
+  cb.textContent = checked ? '✓' : '';
+  _tcAgreed = checked;
+  if(checked) showToast('✅ You have agreed to the Terms & Conditions','ok');
+}
+
+// ── INIT ──────────────────────────────────────────────────────────────────────
+seedIfEmpty();
+renderAll();
+</script>
+</body>
+</html>
