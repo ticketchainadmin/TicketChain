@@ -776,9 +776,9 @@ header{position:sticky;top:0;z-index:100;background:rgba(4,5,10,0.94);backdrop-f
     <div class="partners-title">Trusted & Recognized By</div>
     <div class="partners-grid">
       <div class="partner-card">
-        <span class="partner-logo"><svg viewBox="0 0 1024 1024" xmlns="http://www.w3.org/2000/svg"><circle cx="512" cy="512" r="512" fill="#0052ff"/><path d="M516 720c-114.9 0-208-93.1-208-208s93.1-208 208-208c103 0 188.6 74.9 205 173.4h209.4C912.3 286.9 729.5 112 516 112 295.5 112 116 291.5 116 512s179.5 400 400 400c213.5 0 396.3-174.9 414.4-365.4H721C704.6 645.1 619 720 516 720z" fill="#fff"/></svg></span>
-        <div class="partner-name" style="color:#0052ff">Coinbase</div>
-        <div class="partner-desc">Auto crypto payments</div>
+        <span class="partner-logo" style="font-size:26px">⚡</span>
+        <div class="partner-name" style="color:#00e5ff">NOWPayments</div>
+        <div class="partner-desc">Auto crypto payment detection</div>
         <span class="partner-badge verified">Integrated</span>
       </div>
       <div class="partner-card">
@@ -922,8 +922,8 @@ header{position:sticky;top:0;z-index:100;background:rgba(4,5,10,0.94);backdrop-f
     <p style="text-align:center;color:var(--muted2);font-size:13px;margin-bottom:32px">Powering the TicketChain ecosystem</p>
     <div class="partners-grid">
       <div class="partner-card">
-        <span class="partner-logo"><svg viewBox="0 0 1024 1024" xmlns="http://www.w3.org/2000/svg"><circle cx="512" cy="512" r="512" fill="#0052ff"/><path d="M516 720c-114.9 0-208-93.1-208-208s93.1-208 208-208c103 0 188.6 74.9 205 173.4h209.4C912.3 286.9 729.5 112 516 112 295.5 112 116 291.5 116 512s179.5 400 400 400c213.5 0 396.3-174.9 414.4-365.4H721C704.6 645.1 619 720 516 720z" fill="#fff"/></svg></span>
-        <div class="partner-name" style="color:#0052ff">Coinbase Commerce</div>
+        <span class="partner-logo" style="font-size:26px">⚡</span>
+        <div class="partner-name" style="color:#00e5ff">NOWPayments</div>
         <div class="partner-desc">Automated crypto payment processing</div>
         <span class="partner-badge verified">Payment Partner</span>
       </div>
@@ -1015,8 +1015,11 @@ var firebaseConfig = {
   projectId: "cripto-ticket-chain"
 };
 
-// ── COINBASE COMMERCE CONFIG ───────────────────────────────────────────────────
-var BACKEND_URL = 'https://YOUR-BACKEND-URL.com';
+// ── NOWPAYMENTS CONFIG ────────────────────────────────────────────────────────
+var NP_API_KEY    = 'Q0GXZWD-ZTN41AG-Q2979JM-XZTFF0V';
+var NP_PUBLIC_KEY = '8f87d095-cd13-46b7-b6f4-6e2ec7960c5f';
+var NP_IPN_URL    = 'https://eot1sijtbedden7.m.pipedream.net';
+var NP_API_BASE   = 'https://api.nowpayments.io/v1';
 
 // ── IN-MEMORY CACHE ────────────────────────────────────────────────────────────
 var _cache = { campaigns: [], tickets: [], winners: [] };
@@ -1115,11 +1118,21 @@ var state = {
   buyQty: 1,
   buyerName: '',
   wallet: '',
-  payStep: 1,        // 1=info, 2=method-select, 3=paying, 4=success
-  payMethod: null,   // 'coinbase' | 'manual'
+  mobile: '',
+  payStep: 1,        // 1=info, 2=method-select, 3=NP address, 4=manual TX, 5=success
+  payMethod: null,   // 'nowpayments' | 'manual'
   lastTicketId: null,
-  currentTicketRef: null,  // Firebase ref to current pending ticket
-  pollInterval: null
+  currentTicketRef: null,
+  pollInterval: null,
+  // NOWPayments invoice state
+  npPaymentId:  null,
+  npPayAddress: null,
+  npPayAmount:  null,
+  npPayCoin:    null,
+  npExpiry:     null,
+  npNetwork:    null,
+  txHash: '',
+  finalPaymentStatus: null
 };
 
 var COINS = {
@@ -1536,8 +1549,15 @@ function openBuySheet(campId) {
   state.wallet = '';
   state.buyerName = '';
   state.mobile = '';
+  state.txHash = '';
   state.lastTicketId = null;
   state.finalPaymentStatus = null;
+  state.npPaymentId  = null;
+  state.npPayAddress = null;
+  state.npPayAmount  = null;
+  state.npPayCoin    = null;
+  state.npExpiry     = null;
+  state.npNetwork    = null;
   // Detach any leftover listener from a previous purchase
   if(state.currentTicketRef) {
     try { state.currentTicketRef.off(); } catch(e) {}
@@ -1552,17 +1572,23 @@ function openBuySheet(campId) {
 function closeSheet() {
   $('buy-overlay').classList.remove('open');
   clearPollInterval();
-  // Detach the Firebase status listener if one is attached
   if(state.currentTicketRef) {
     try { state.currentTicketRef.off(); } catch(e) {}
     state.currentTicketRef = null;
   }
-  state.buyingCampaign = null;
-  state.payStep = 1;
-  state.payMethod = null;
-  state.lastTicketId = null;
+  state.buyingCampaign   = null;
+  state.payStep          = 1;
+  state.payMethod        = null;
+  state.lastTicketId     = null;
   state.currentTicketRef = null;
   state.finalPaymentStatus = null;
+  state.npPaymentId      = null;
+  state.npPayAddress     = null;
+  state.npPayAmount      = null;
+  state.npPayCoin        = null;
+  state.npExpiry         = null;
+  state.npNetwork        = null;
+  state.txHash           = '';
 }
 
 function clearPollInterval() {
@@ -1574,16 +1600,18 @@ function renderSheet() {
   var camp = state.buyingCampaign;
   if(!camp) return;
   var coin = getCoin(camp.coin);
-  var qty = state.buyQty;
+  var qty  = state.buyQty;
   var total = camp.price * qty;
-  var body = $('sheet-body');
+  var body  = $('sheet-body');
+  if(!body) return;
 
-  // Step bar (3 steps: Info → Pay → Done)
-  var steps = '<div class="pay-step-bar">'
-    +'<div class="pay-step '+(state.payStep>=1?'done':'')+'"></div>'
-    +'<div class="pay-step '+(state.payStep>=2?'done':state.payStep===2?'active':'')+'"></div>'
-    +'<div class="pay-step '+(state.payStep>=3?'done':'')+'"></div>'
-    +'</div>';
+  // Step bar: 4 real steps (Info / Method / Pay / Done)
+  function stepBar(active) {
+    var labels = ['Info','Method','Pay','Done'];
+    var html = '<div class="pay-step-bar">';
+    for(var i=1;i<=4;i++) html += '<div class="pay-step '+(active>i?'done':active===i?'active':'')+'"></div>';
+    return html + '</div>';
+  }
 
   var summary = '<div class="pay-summary">'
     +'<div class="pay-row"><span class="lbl">Campaign</span><span style="font-size:12px;font-weight:600">'+escHtml(camp.name)+'</span></div>'
@@ -1592,9 +1620,9 @@ function renderSheet() {
     +'<div class="pay-row"><span class="lbl">Total</span><span class="val" style="color:'+coin.color+';font-size:16px">'+(fmt(total,6))+' '+camp.coin+'</span></div>'
     +'</div>';
 
-  // ── STEP 1: Info collection ────────────────────────────────────────────────
+  // ── STEP 1: Buyer Info ────────────────────────────────────────────────────
   if(state.payStep === 1) {
-    body.innerHTML = steps + summary
+    body.innerHTML = stepBar(1) + summary
       +'<div class="tx-form-group">'
       +'<label class="tx-label">Your Full Name</label>'
       +'<input class="tx-input" id="buyer-name-inp" placeholder="e.g. Ahmed Al-Mansouri" value="'+escHtml(state.buyerName||'')+'"/>'
@@ -1610,18 +1638,89 @@ function renderSheet() {
       +'<div style="font-size:11px;color:var(--muted2);margin-top:5px">📞 We\'ll contact you here if you win</div>'
       +'</div>'
       +'<button class="pay-action-btn primary" onclick="goStep2()">Continue to Payment →</button>';
+    return;
   }
 
-  // ── STEP 2: Manual payment — coin locked to campaign coin ─────────────────
-  else if(state.payStep === 2) {
-    var addr = getWalletAddr(camp.coin) || 'WALLET_NOT_CONFIGURED';
-    var qrUrl = 'https://api.qrserver.com/v1/create-qr-code/?size=140x140&color=ffffff&bgcolor=0f1219&data='+encodeURIComponent(addr);
-    body.innerHTML = steps + summary
+  // ── STEP 2: Payment Method Selection ──────────────────────────────────────
+  if(state.payStep === 2) {
+    var npCoin = NP_COIN_MAP[camp.coin];
+    var npSupported = !!npCoin;
+    body.innerHTML = stepBar(2) + summary
+      +'<div style="font-size:10px;color:var(--muted2);letter-spacing:2px;text-transform:uppercase;font-weight:600;margin-bottom:12px">Choose Payment Method</div>'
+      +'<div class="pay-method-grid">'
+      // NOWPayments card
+      +'<div class="pay-method-card'+(state.payMethod==='nowpayments'?' selected':'')+'" onclick="'+(npSupported?"selectPayMethod('nowpayments')":'showToast(\''+camp.coin+' not yet supported by NOWPayments auto-pay — use manual\',\'err\')')+'" style="'+(npSupported?'':'opacity:0.45;cursor:not-allowed;')+'">'
+      +'<span class="pay-method-icon">⚡</span>'
+      +'<div class="pay-method-title" style="color:var(--accent)">NOWPayments</div>'
+      +'<div class="pay-method-desc">Auto-detected crypto payment<br>Instant confirmation<br><span style="color:var(--green);font-weight:600">✓ Recommended</span></div>'
+      +'</div>'
+      // Manual card
+      +'<div class="pay-method-card'+(state.payMethod==='manual'?' selected':'')+'" onclick="selectPayMethod(\'manual\')">'
+      +'<span class="pay-method-icon">📤</span>'
+      +'<div class="pay-method-title" style="color:var(--gold)">Manual Transfer</div>'
+      +'<div class="pay-method-desc">Send crypto yourself<br>Paste TX hash<br><span style="color:var(--muted2)">Admin verifies ~24h</span></div>'
+      +'</div>'
+      +'</div>'
+      +'<button class="pay-action-btn" style="background:rgba(255,255,255,0.04);border:1px solid var(--border);color:var(--muted2);margin-top:4px" onclick="state.payStep=1;state.payMethod=null;renderSheet()">← Back</button>';
+    return;
+  }
+
+  // ── STEP 3: NOWPayments — address + live status ───────────────────────────
+  if(state.payStep === 3 && state.payMethod === 'nowpayments') {
+    if(!state.npPayAddress) {
+      // Still loading
+      body.innerHTML = stepBar(3) + npLoadingHtml();
+      return;
+    }
+    var npCoinUpper = (state.npPayCoin||camp.coin).toUpperCase();
+    var qrData = state.npPayAddress;
+    var qrUrl  = 'https://api.qrserver.com/v1/create-qr-code/?size=140x140&color=ffffff&bgcolor=0f1219&data='+encodeURIComponent(qrData);
+    var expiryTxt = '';
+    if(state.npExpiry) {
+      try { expiryTxt = new Date(state.npExpiry).toLocaleTimeString([],{hour:'2-digit',minute:'2-digit'}); } catch(e){}
+    }
+    body.innerHTML = stepBar(3) + summary
+      +'<div style="background:linear-gradient(135deg,rgba(0,229,255,0.06),rgba(124,58,237,0.06));border:1px solid rgba(0,229,255,0.2);border-radius:14px;padding:16px;margin-bottom:14px">'
+      +'<div style="display:flex;align-items:center;gap:10px;margin-bottom:14px">'
+      +'<div style="width:36px;height:36px;border-radius:50%;background:rgba(0,229,255,0.12);border:2px solid rgba(0,229,255,0.3);display:flex;align-items:center;justify-content:center;font-size:16px;flex-shrink:0">⚡</div>'
+      +'<div><div style="font-size:10px;color:var(--muted2);letter-spacing:2px;text-transform:uppercase;font-weight:600">NOWPayments — Auto Detected</div>'
+      +'<div style="font-family:var(--mono);font-size:14px;font-weight:700;color:var(--accent)">Send Exactly</div></div>'
+      +'</div>'
+      +'<div style="font-family:var(--mono);font-size:26px;font-weight:800;color:'+coin.color+';margin-bottom:4px;word-break:break-all">'+(state.npPayAmount||fmt(total,8))+' <span style="font-size:14px;color:var(--muted2)">'+npCoinUpper+'</span></div>'
+      +(expiryTxt ? '<div style="font-size:10px;color:var(--gold);margin-bottom:14px">⏱ Payment window expires at '+expiryTxt+'</div>' : '<div style="margin-bottom:14px"></div>')
+      +'<div style="background:rgba(249,115,22,0.07);border:1px solid rgba(249,115,22,0.25);border-radius:10px;padding:10px 14px;margin-bottom:14px;display:flex;align-items:flex-start;gap:8px">'
+      +'<span style="font-size:16px;flex-shrink:0">⚠️</span>'
+      +'<div style="font-size:11px;color:var(--muted2);line-height:1.5">Send <strong style="color:var(--text)">EXACTLY</strong> the amount shown above on the correct network. Wrong amount or network = <strong style="color:var(--red)">lost funds</strong>.</div>'
+      +'</div>'
+      +'<div style="font-size:10px;color:var(--muted2);letter-spacing:2px;text-transform:uppercase;font-weight:600;margin-bottom:8px">Payment Address</div>'
+      +'<div style="display:flex;gap:12px;align-items:flex-start;flex-wrap:wrap">'
+      +'<div style="background:#0f1219;border:2px solid '+coin.color+'44;border-radius:10px;padding:6px;flex-shrink:0">'
+      +'<img src="'+qrUrl+'" width="110" height="110" style="display:block;border-radius:5px"/>'
+      +'</div>'
+      +'<div style="flex:1;min-width:0">'
+      +'<div class="deposit-addr" id="np-pay-addr" onclick="copyAddr(this)">'+escHtml(state.npPayAddress)+'<br><span style="font-size:9px;color:var(--muted2);margin-top:4px;display:block">📋 Tap to copy</span></div>'
+      +'</div></div>'
+      +'</div>'
+      // Live status row
+      +'<div class="status-poll-box">'
+      +'<div class="status-spinner"></div>'
+      +'<div class="status-label" id="np-status-label" style="color:var(--gold)">⏳ Waiting for payment…</div>'
+      +'<div class="status-sub">Checking automatically every 15 seconds — you don\'t need to do anything</div>'
+      +'</div>'
+      +'<div class="info-box warning">📌 Send your payment, then wait. This screen will update automatically when confirmed. You can safely close and come back — check your ticket in My Tickets.</div>'
+      +'<button class="pay-action-btn" style="background:rgba(255,255,255,0.04);border:1px solid var(--border);color:var(--muted2)" onclick="closeSheet()">Close (payment still tracked)</button>';
+    return;
+  }
+
+  // ── STEP 4: Manual Transfer ────────────────────────────────────────────────
+  if(state.payStep === 4 && state.payMethod === 'manual' && !state.finalPaymentStatus) {
+    var addr   = getWalletAddr(camp.coin) || 'WALLET_NOT_CONFIGURED';
+    var qrUrl2 = 'https://api.qrserver.com/v1/create-qr-code/?size=140x140&color=ffffff&bgcolor=0f1219&data='+encodeURIComponent(addr);
+    body.innerHTML = stepBar(3) + summary
       +'<div style="background:var(--card);border:1px solid var(--border);border-radius:12px;padding:16px;margin-bottom:14px">'
       +'<div style="display:flex;align-items:center;gap:10px;margin-bottom:14px">'
       +(coin.logo ? '<img src="'+coin.logo+'" style="width:28px;height:28px;border-radius:50%;flex-shrink:0" onerror="this.style.display=\'none\'"/>' : '')
-      +'<div>'
-      +'<div style="font-size:10px;color:var(--muted2);letter-spacing:2px;text-transform:uppercase;font-weight:600">Pay with</div>'
+      +'<div><div style="font-size:10px;color:var(--muted2);letter-spacing:2px;text-transform:uppercase;font-weight:600">Pay with</div>'
       +'<div style="font-family:var(--mono);font-size:16px;font-weight:700;color:'+coin.color+'">'+camp.coin+' only</div>'
       +'</div></div>'
       +'<div style="font-size:10px;color:var(--muted2);letter-spacing:2px;text-transform:uppercase;margin-bottom:6px;font-weight:600">Send Exactly</div>'
@@ -1632,13 +1731,13 @@ function renderSheet() {
            +'<span style="font-size:18px;flex-shrink:0;line-height:1">⚠️</span>'
            +'<div style="flex:1;min-width:0">'
            +'<div style="font-size:11px;color:var(--orange);font-weight:700;letter-spacing:.5px;margin-bottom:3px">'+escHtml(net)+' ONLY</div>'
-           +'<div style="font-size:11px;color:var(--muted2);line-height:1.5">Send <strong style="color:var(--text)">'+escHtml(camp.coin)+'</strong> on the <strong style="color:var(--text)">'+escHtml(net)+'</strong>. Sending the wrong coin or wrong network will <strong style="color:var(--red)">permanently lose your funds</strong>.</div>'
+           +'<div style="font-size:11px;color:var(--muted2);line-height:1.5">Send <strong style="color:var(--text)">'+escHtml(camp.coin)+'</strong> on the <strong style="color:var(--text)">'+escHtml(net)+'</strong>. Wrong coin or network will <strong style="color:var(--red)">permanently lose your funds</strong>.</div>'
            +'</div></div>';
        })()
       +'<div style="font-size:10px;color:var(--muted2);letter-spacing:2px;text-transform:uppercase;margin-bottom:8px;font-weight:600">To This Address</div>'
       +'<div style="display:flex;gap:14px;align-items:flex-start;flex-wrap:wrap">'
       +'<div style="background:#0f1219;border:2px solid '+coin.color+'44;border-radius:10px;padding:6px;flex-shrink:0">'
-      +'<img src="'+qrUrl+'" width="110" height="110" style="display:block;border-radius:5px" onerror="this.parentElement.style.display=\'none\'"/>'
+      +'<img src="'+qrUrl2+'" width="110" height="110" style="display:block;border-radius:5px" onerror="this.parentElement.style.display=\'none\'"/>'
       +'</div>'
       +'<div style="flex:1;min-width:0">'
       +'<div class="deposit-addr" onclick="copyAddr(this)">'+escHtml(addr)+'<br><span style="font-size:9px;color:var(--muted2);margin-top:4px;display:block">📋 Tap to copy</span></div>'
@@ -1650,58 +1749,42 @@ function renderSheet() {
       +'</div>'
       +'<div class="info-box warning">⚠️ Your payment will be <strong>manually verified</strong> by the admin team within 24 hours.</div>'
       +'<button class="pay-action-btn primary" onclick="submitManualPayment()">Submit Payment for Review →</button>';
+    return;
   }
 
-  // ── STEP 3: Two states — PENDING (no ticket shown) vs PAID (full ticket) ──
-  else if(state.payStep === 3) {
-    var isPaid     = state.finalPaymentStatus === 'paid';
-    var isRejected = state.finalPaymentStatus === 'rejected';
+  // ── STEP 3 NP pending/rejected or STEP 4 manual pending/rejected ─────────
+  if((state.payStep === 3 || state.payStep === 4) && state.finalPaymentStatus && state.finalPaymentStatus !== 'paid') {
+    var isRej = state.finalPaymentStatus === 'rejected';
+    var shortWallet = (state.wallet||'');
+    if(shortWallet.length > 18) shortWallet = shortWallet.slice(0,10)+'…'+shortWallet.slice(-6);
+    var shortTx = (state.txHash||'');
+    if(shortTx.length > 18) shortTx = shortTx.slice(0,10)+'…'+shortTx.slice(-6);
+    body.innerHTML = stepBar(3) + summary
+      +'<div style="text-align:center;padding:8px 0 16px">'
+      +(isRej
+        ? '<div class="pay-icon-wrap" style="background:rgba(244,63,94,0.1);border:2px solid rgba(244,63,94,0.3);font-size:24px">❌</div>'
+          +'<h3 style="font-size:18px;font-weight:700;color:var(--red);margin-bottom:4px">Payment Rejected</h3>'
+          +'<p style="font-size:13px;color:var(--muted2)">The admin team could not verify your transaction.</p>'
+        : '<div class="pay-icon-wrap" style="background:rgba(249,115,22,0.1);border:2px solid rgba(249,115,22,0.3);font-size:24px">⏳</div>'
+          +'<h3 style="font-size:18px;font-weight:700;color:var(--orange);margin-bottom:4px">Payment Under Review</h3>'
+          +'<p style="font-size:13px;color:var(--muted2)">Your transaction has been submitted to the admin team.</p>'
+       )
+      +'</div>'
+      +'<div class="info-box warning" style="margin-bottom:14px">'
+      +(isRej
+        ? '❌ Could not be verified. No ticket issued. Email <a href="mailto:ticketchainadmin@gmail.com" style="color:var(--accent)">ticketchainadmin@gmail.com</a> if you believe this is a mistake.'
+        : '⏳ Your <strong>ticket will be issued only after</strong> admin verifies your TX (within 24h). It will appear here automatically. Questions? Email <a href="mailto:ticketchainadmin@gmail.com" style="color:var(--accent)">ticketchainadmin@gmail.com</a>'
+       )
+      +'</div>'
+      +'<button class="pay-action-btn" style="background:rgba(255,255,255,0.04);border:1px solid var(--border);color:var(--muted2)" onclick="closeSheet()">Close</button>';
+    return;
+  }
 
-    // ── PENDING / REJECTED: Hide ticket details — admin has NOT yet verified ──
-    if(!isPaid) {
-      var shortWallet = (state.wallet||'');
-      if(shortWallet.length > 18) shortWallet = shortWallet.slice(0,10)+'…'+shortWallet.slice(-6);
-      var shortTx = (state.txHash||'');
-      if(shortTx.length > 18) shortTx = shortTx.slice(0,10)+'…'+shortTx.slice(-6);
-
-      body.innerHTML = steps + summary
-        +'<div style="text-align:center;padding:8px 0 16px">'
-        +(isRejected
-          ? '<div class="pay-icon-wrap" style="background:rgba(244,63,94,0.1);border:2px solid rgba(244,63,94,0.3);font-size:24px">❌</div>'
-            +'<h3 style="font-size:18px;font-weight:700;color:var(--red);margin-bottom:4px">Payment Rejected</h3>'
-            +'<p style="font-size:13px;color:var(--muted2)">The admin team could not verify your transaction.</p>'
-          : '<div class="pay-icon-wrap" style="background:rgba(249,115,22,0.1);border:2px solid rgba(249,115,22,0.3);font-size:24px">⏳</div>'
-            +'<h3 style="font-size:18px;font-weight:700;color:var(--orange);margin-bottom:4px">Payment Under Review</h3>'
-            +'<p style="font-size:13px;color:var(--muted2)">Your transaction has been submitted to the admin team.</p>'
-         )
-        +'</div>'
-        +'<div class="info-box warning" style="margin-bottom:14px">'
-        +(isRejected
-          ? '❌ Your payment could not be verified. No ticket has been issued. Please contact support at <a href="mailto:ticketchainadmin@gmail.com" style="color:var(--accent)">ticketchainadmin@gmail.com</a> if you believe this is a mistake.'
-          : '⏳ Your <strong>ticket will be issued only after</strong> the admin verifies your TX hash on-chain (within 24h). Once verified, your ticket ID and QR code will appear here automatically. You can safely close this window — your wallet is on file. Questions? Email <a href="mailto:ticketchainadmin@gmail.com" style="color:var(--accent)">ticketchainadmin@gmail.com</a>'
-         )
-        +'</div>'
-        +'<div style="background:var(--card);border:1px solid var(--border);border-radius:12px;padding:14px;margin-bottom:14px">'
-        +'<div style="font-size:10px;color:var(--muted2);letter-spacing:2px;text-transform:uppercase;margin-bottom:10px;font-weight:600">Submitted Details</div>'
-        +'<div class="pay-row"><span class="lbl">Buyer</span><span class="val">'+escHtml(state.buyerName||'—')+'</span></div>'
-        +'<div class="pay-row"><span class="lbl">Mobile</span><span class="val">'+escHtml(state.mobile||'—')+'</span></div>'
-        +'<div class="pay-row"><span class="lbl">Wallet</span><span class="val" style="font-family:var(--mono);font-size:11px">'+escHtml(shortWallet||'—')+'</span></div>'
-        +'<div class="pay-row"><span class="lbl">TX Hash</span><span class="val" style="font-family:var(--mono);font-size:11px">'+escHtml(shortTx||'—')+'</span></div>'
-        +'<div class="pay-row"><span class="lbl">Status</span><span class="val">'
-        +(isRejected
-          ? '<span class="pill-pending" style="background:rgba(244,63,94,0.12);color:var(--red);border-color:rgba(244,63,94,0.25)">✗ REJECTED</span>'
-          : '<span class="pill-pending">⏳ AWAITING VERIFICATION</span>'
-         )
-        +'</span></div>'
-        +'</div>'
-        +'<button class="pay-action-btn" style="background:rgba(255,255,255,0.04);border:1px solid var(--border);color:var(--muted2)" onclick="closeSheet()">Close</button>';
-      return;
-    }
-
-    // ── PAID: Admin verified — NOW reveal the real ticket ──
+  // ── STEP 5: SUCCESS — payment confirmed (NP auto or manual admin approval) ─
+  if(state.payStep === 5 || (state.finalPaymentStatus === 'paid')) {
     var ticketId = state.lastTicketId;
-    var qrUrl = 'https://api.qrserver.com/v1/create-qr-code/?size=160x160&color=ffffff&bgcolor=0f1219&data='+encodeURIComponent(ticketId||'');
-    body.innerHTML = steps
+    var qrUrlT   = 'https://api.qrserver.com/v1/create-qr-code/?size=160x160&color=ffffff&bgcolor=0f1219&data='+encodeURIComponent(ticketId||'');
+    body.innerHTML = stepBar(4)
       +'<div style="text-align:center;padding:8px 0 16px">'
       +'<div class="pay-icon-wrap" style="background:rgba(16,185,129,0.1);border:2px solid rgba(16,185,129,0.3);font-size:24px">🎉</div>'
       +'<h3 style="font-size:18px;font-weight:700;color:var(--green);margin-bottom:4px">You\'re In the Draw!</h3>'
@@ -1712,64 +1795,244 @@ function renderSheet() {
       +'<div class="ticket-id" id="dl-ticket-id">'+escHtml(ticketId||'')+'</div>'
       +(state.buyerName?'<div class="ticket-info-row" style="justify-content:center;margin-bottom:6px"><span style="color:var(--text);font-weight:600">👤 '+escHtml(state.buyerName)+'</span></div>':'')
       +'<div class="ticket-info-row"><span>Campaign: <b>'+escHtml(camp.name)+'</b></span></div>'
-      +'<div class="ticket-info-row" style="margin-top:4px"><span>Qty: <b>'+qty+' ticket'+(qty>1?'s':'')+ '</b></span><span>Coin: <b>'+escHtml(camp.coin)+'</b></span></div>'
-      +'<div style="text-align:center;margin-top:10px"><span class="pill-paid">✓ PAID — Verified</span></div>'
+      +'<div class="ticket-info-row" style="margin-top:4px"><span>Qty: <b>'+qty+' ticket'+(qty>1?'s':'')+'</b></span><span>Coin: <b>'+escHtml(camp.coin)+'</b></span></div>'
+      +'<div style="text-align:center;margin-top:8px">'
+      +(state.payMethod==='nowpayments'
+        ? '<span class="pill-paid">⚡ NOWPayments — Auto Verified</span>'
+        : '<span class="pill-paid">✓ PAID — Admin Verified</span>')
+      +'</div>'
       +'<div style="text-align:center;margin-top:14px">'
-      +'<img id="ticket-qr-img" src="'+qrUrl+'" width="120" height="120" style="border-radius:8px;border:2px solid rgba(255,255,255,0.1)" onerror="this.style.display=\'none\'"/>'
+      +'<img id="ticket-qr-img" src="'+qrUrlT+'" width="120" height="120" style="border-radius:8px;border:2px solid rgba(255,255,255,0.1)"/>'
       +'<div style="font-size:9px;color:var(--muted);margin-top:6px">Scan to verify ticket</div>'
       +'</div></div>'
-      +'<div class="info-box success">✅ Payment fully confirmed! Good luck in the draw. Any questions? <a href="mailto:ticketchainadmin@gmail.com" style="color:var(--green)">ticketchainadmin@gmail.com</a></div>'
+      +'<div class="info-box success">✅ Payment fully confirmed! Good luck in the draw. Questions? <a href="mailto:ticketchainadmin@gmail.com" style="color:var(--green)">ticketchainadmin@gmail.com</a></div>'
       +'<div style="display:flex;gap:8px;margin-bottom:10px">'
       +'<button class="pay-action-btn primary" style="flex:1;background:linear-gradient(135deg,#10b981,#059669);color:#fff;display:flex;align-items:center;justify-content:center;gap:8px" onclick="downloadTicket()">'
       +'<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>'
       +' Download Ticket'
       +'</button>'
-      +'<button class="pay-action-btn" style="flex:0 0 auto;padding:14px 18px;background:rgba(0,229,255,0.1);border:1px solid rgba(0,229,255,0.3);color:var(--accent);display:flex;align-items:center;justify-content:center;gap:6px" onclick="copyTicketId()" title="Copy ticket ID">'
+      +'<button class="pay-action-btn" style="flex:0 0 auto;padding:14px 18px;background:rgba(0,229,255,0.1);border:1px solid rgba(0,229,255,0.3);color:var(--accent);display:flex;align-items:center;justify-content:center;gap:6px" onclick="copyTicketId()">'
       +'<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>'
       +' Copy ID'
       +'</button>'
       +'</div>'
       +'<button class="pay-action-btn" style="background:rgba(255,255,255,0.04);border:1px solid var(--border);color:var(--muted2)" onclick="closeSheet()">Close — View All Campaigns</button>';
     launchConfetti();
+    return;
   }
 }
 
 // ── STEP NAVIGATION ────────────────────────────────────────────────────────────
-// Step 1 → Step 2: validate name+wallet, create ticket in Firebase, show payment screen
+// Step 1 → Step 2: validate inputs then show payment method choice
 function goStep2() {
-  var nameInp = $('buyer-name-inp');
-  var wi = $('wallet-inp');
+  var nameInp   = $('buyer-name-inp');
+  var wi        = $('wallet-inp');
   var mobileInp = $('mobile-inp');
-  var name = nameInp ? nameInp.value.trim() : '';
-  var wallet = wi ? wi.value.trim() : '';
-  var mobile = mobileInp ? mobileInp.value.trim() : '';
-  if(!name) { showToast('Please enter your full name','err'); return; }
+  var name   = nameInp   ? nameInp.value.trim()   : '';
+  var wallet = wi        ? wi.value.trim()         : '';
+  var mobile = mobileInp ? mobileInp.value.trim()  : '';
+  if(!name)   { showToast('Please enter your full name','err'); return; }
   if(!wallet) { showToast('Please enter your '+state.buyingCampaign.coin+' wallet address','err'); return; }
   if(!mobile) { showToast('Please enter your mobile number','err'); return; }
-  // Enforce T&C agreement before allowing payment
   if(!_tcAgreed) {
     showToast('⚠️ Please agree to the Terms & Conditions on the home page before purchasing','err');
     return;
   }
-  // Re-check live stock right before payment — campaign may have sold more since open
   var camp = state.buyingCampaign;
   var freshCamp = (getDB().campaigns||[]).find(function(c){ return c.id===camp.id; }) || camp;
-  if (freshCamp.status !== 'active') {
-    showToast('This campaign is no longer active','err'); return;
-  }
+  if (freshCamp.status !== 'active') { showToast('This campaign is no longer active','err'); return; }
   var stockLeft = Math.max(0, (freshCamp.totalTickets||0) - (freshCamp.soldTickets||0));
   if (stockLeft < state.buyQty) {
     showToast('Only ' + stockLeft + ' ticket(s) remaining — please reduce your quantity','err');
     return;
   }
-  // Only save to state — no Firebase write yet, no ticket created yet
   state.buyerName = name;
-  state.wallet = wallet;
-  state.mobile = mobile;
-  state.payMethod = 'manual';
-  state.txHash = '';
-  state.payStep = 2;
+  state.wallet    = wallet;
+  state.mobile    = mobile;
+  state.txHash    = '';
+  state.payStep   = 2;   // method selection
+  state.payMethod = null;
   renderSheet();
+}
+
+// ── SELECT PAYMENT METHOD ─────────────────────────────────────────────────────
+function selectPayMethod(method) {
+  state.payMethod = method;
+  if (method === 'nowpayments') {
+    state.payStep = 3; // NP invoice creation
+    renderSheet();
+    createNOWPaymentsInvoice();
+  } else {
+    state.payStep = 4; // manual TX flow
+    renderSheet();
+  }
+}
+
+// ── NOWPAYMENTS — coin symbol map ─────────────────────────────────────────────
+// NOWPayments uses lowercase 3-4 letter codes; some need network suffix for USDT/USDC
+var NP_COIN_MAP = {
+  BTC: 'btc', ETH: 'eth', SOL: 'sol', XRP: 'xrp',
+  USDT: 'usdterc20', USDC: 'usdcerc20', BNB: 'bnbbsc',
+  ADA: 'ada', LTC: 'ltc', TRX: 'trx', TON: 'ton',
+  LINK: 'link', XLM: 'xlm', DOGE: 'doge', SHIB: 'shib',
+  PEPE: 'pepe', FLOKI: 'floki', WIF: 'wif', BONK: 'bonk'
+};
+
+// ── NOWPAYMENTS — create invoice and show address ────────────────────────────
+function createNOWPaymentsInvoice() {
+  var camp    = state.buyingCampaign;
+  var qty     = state.buyQty;
+  var npCoin  = NP_COIN_MAP[camp.coin] || camp.coin.toLowerCase();
+  var ticketId = genTicketId();
+  state.lastTicketId = ticketId;
+
+  // Calculate USD price using live rate, fallback to 1:1 for stablecoins
+  var usdRate  = getUsdPrice(camp.coin);
+  var totalCrypto = camp.price * qty;
+  var priceUsd = usdRate ? totalCrypto * usdRate : totalCrypto;
+  if (camp.coin === 'USDT' || camp.coin === 'USDC') priceUsd = totalCrypto; // stablecoins = 1:1
+
+  var orderDesc = 'TicketChain: '+camp.name+' x'+qty+' ticket(s) | ID: '+ticketId;
+
+  // Show loading state immediately
+  var body = $('sheet-body');
+  if(body) body.innerHTML = npLoadingHtml();
+
+  fetch(NP_API_BASE + '/payment', {
+    method: 'POST',
+    headers: {
+      'x-api-key': NP_API_KEY,
+      'Content-Type': 'application/json'
+    },
+    body: JSON.stringify({
+      price_amount:   priceUsd,
+      price_currency: 'usd',
+      pay_currency:   npCoin,
+      ipn_callback_url: NP_IPN_URL,
+      order_id:       ticketId,
+      order_description: orderDesc,
+      is_fixed_rate:  false,
+      is_fee_paid_by_user: false
+    })
+  })
+  .then(function(r){
+    if(!r.ok) return r.json().then(function(e){ throw e; });
+    return r.json();
+  })
+  .then(function(data) {
+    if(!data || data.code || !data.pay_address) {
+      var errMsg = data && data.message ? data.message : 'Payment could not be created.';
+      showToast('NOWPayments: ' + errMsg, 'err');
+      state.payStep = 2; state.payMethod = null; renderSheet();
+      return;
+    }
+    // Store invoice details in state
+    state.npPaymentId  = data.payment_id;
+    state.npPayAddress = data.pay_address;
+    state.npPayAmount  = data.pay_amount;
+    state.npPayCoin    = data.pay_currency;
+    state.npExpiry     = data.expiration_estimate_date || null;
+    state.npNetwork    = data.network || getWalletNetwork(camp.coin);
+
+    // Save a pending ticket to Firebase right away (admin can see it)
+    var ticketObj = {
+      id:            ticketId,
+      campaignId:    camp.id,
+      campaignName:  camp.name,
+      coin:          camp.coin,
+      qty:           qty,
+      totalPaid:     totalCrypto,
+      walletAddress: state.wallet,
+      buyerName:     state.buyerName,
+      mobile:        state.mobile,
+      purchaseTime:  Date.now(),
+      paymentStatus: 'pending',
+      paymentMethod: 'nowpayments',
+      npPaymentId:   data.payment_id,
+      npPayAddress:  data.pay_address,
+      npPayAmount:   data.pay_amount,
+      npPayCoin:     data.pay_currency,
+      txSubmittedAt: Date.now()
+    };
+    if(_firebaseOk && db_ref) {
+      dbRef('tickets/'+ticketId).set(ticketObj).catch(function(e){ console.warn('FB write err:',e); });
+    }
+    // Also watch for status update from webhook->admin->Firebase
+    attachTicketStatusListener(ticketId);
+
+    // Render the payment address screen and start polling
+    renderSheet();
+    startNPPolling(data.payment_id, ticketId);
+  })
+  .catch(function(err) {
+    console.error('NOWPayments API error:', err);
+    var msg = (err && err.message && err.message.indexOf('fetch') !== -1)
+      ? 'Browser blocked the request (CORS). Please use Manual Transfer instead, or contact support.'
+      : 'Connection error — please try again or use Manual Transfer.';
+    showToast(msg, 'err');
+    state.payStep = 2; state.payMethod = null; renderSheet();
+  });
+}
+
+// ── NOWPAYMENTS — poll payment status every 15s ───────────────────────────────
+function startNPPolling(paymentId, ticketId) {
+  clearPollInterval();
+  state.pollInterval = setInterval(function() {
+    if(!paymentId || state.payStep < 3) { clearPollInterval(); return; }
+    fetch(NP_API_BASE + '/payment/'+paymentId, {
+      headers: { 'x-api-key': NP_API_KEY }
+    })
+    .then(function(r){ return r.json(); })
+    .then(function(d) {
+      if(!d || !d.payment_status) return;
+      var s = d.payment_status; // waiting | confirming | confirmed | finished | partially_paid | failed | expired
+      if((s === 'finished' || s === 'confirmed') && state.finalPaymentStatus !== 'paid') {
+        clearPollInterval();
+        state.finalPaymentStatus = 'paid';
+        // Update Firebase ticket to paid
+        if(_firebaseOk && db_ref) {
+          dbRef('tickets/'+ticketId).update({ paymentStatus: 'paid', paidAt: Date.now(), npFinalStatus: s });
+        }
+        // Update campaign soldTickets count
+        var camp = state.buyingCampaign;
+        if(camp && _firebaseOk && db_ref) {
+          var freshCamp = (_cache.campaigns||[]).find(function(c){ return c.id===camp.id; }) || camp;
+          dbRef('campaigns/'+camp.id+'/soldTickets').set((freshCamp.soldTickets||0)+state.buyQty);
+        }
+        state.payStep = 5; // final success
+        renderSheet();
+        launchConfetti();
+        showToast('✅ Payment confirmed! Your ticket is ready.','ok');
+      } else if((s === 'failed' || s === 'expired') && state.finalPaymentStatus !== 'rejected') {
+        clearPollInterval();
+        state.finalPaymentStatus = 'rejected';
+        if(_firebaseOk && db_ref) {
+          dbRef('tickets/'+ticketId).update({ paymentStatus: s, npFinalStatus: s });
+        }
+        renderSheet();
+        showToast('❌ Payment '+s+'. Please try again.','err');
+      }
+      // Update network status indicator if sheet is still open
+      var npStatus = $('np-status-label');
+      if(npStatus) {
+        var labels = { waiting:'⏳ Waiting for payment…', confirming:'🔄 Payment detected — confirming…', partially_paid:'⚠️ Partial payment detected', confirmed:'✅ Confirmed!', finished:'✅ Payment complete!', failed:'❌ Failed', expired:'❌ Expired' };
+        npStatus.textContent = labels[s] || s;
+        if(s==='confirming'||s==='confirmed'||s==='finished') npStatus.style.color='var(--green)';
+        if(s==='failed'||s==='expired') npStatus.style.color='var(--red)';
+        if(s==='waiting') npStatus.style.color='var(--gold)';
+      }
+    })
+    .catch(function(e){ console.warn('NP poll err:', e); });
+  }, 15000);
+}
+
+// ── NOWPAYMENTS loading HTML ──────────────────────────────────────────────────
+function npLoadingHtml() {
+  return '<div style="text-align:center;padding:48px 20px">'
+    +'<div class="status-spinner" style="margin:0 auto 20px"></div>'
+    +'<div style="font-family:var(--head);font-size:16px;font-weight:700;margin-bottom:8px">Creating Payment…</div>'
+    +'<div style="font-size:13px;color:var(--muted2)">Connecting to NOWPayments — this takes a few seconds</div>'
+    +'</div>';
 }
 
 // ── MANUAL PAYMENT — ticket created in Firebase ONLY when buyer submits TX hash ─
@@ -1826,7 +2089,7 @@ function submitManualPayment() {
 
   function onSaved() {
     state.finalPaymentStatus = 'pending';
-    state.payStep = 3;
+    state.payStep = 4;
     renderSheet();
     // ⚠️ NO confetti here — payment is NOT yet verified by admin.
     showToast('⏳ TX submitted — awaiting admin verification.','ok');
@@ -1859,9 +2122,10 @@ function attachTicketStatusListener(ticketId) {
     var t = snap.val();
     if(!t) return;
     // Only react if the buyer is still on this ticket's flow
-    if(state.lastTicketId !== ticketId || state.payStep !== 3) return;
+    if(state.lastTicketId !== ticketId || (state.payStep < 3)) return;
     if(t.paymentStatus === 'paid' && state.finalPaymentStatus !== 'paid') {
       state.finalPaymentStatus = 'paid';
+      state.payStep = 5;
       renderSheet();
       showToast('✅ Payment verified! Your ticket is confirmed.','ok');
     } else if((t.paymentStatus === 'rejected' || t.paymentStatus === 'failed') && state.finalPaymentStatus !== 'rejected') {
@@ -1874,9 +2138,9 @@ function attachTicketStatusListener(ticketId) {
 
 // ── DOWNLOAD TICKET ───────────────────────────────────────────────────────────
 function downloadTicket() {
-  // SAFETY: Never allow download until admin has verified the payment
-  if(state.finalPaymentStatus !== 'paid') {
-    showToast('⏳ Ticket will be available once admin verifies your payment.','err');
+  // Allow download when payment is confirmed (NP auto) or admin-verified (manual)
+  if(state.finalPaymentStatus !== 'paid' && state.payStep !== 5) {
+    showToast('⏳ Ticket will be available once payment is verified.','err');
     return;
   }
   var camp = state.buyingCampaign;
